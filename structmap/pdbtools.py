@@ -1,6 +1,14 @@
+"""Helper module for structmap package. Contains a collection of tools
+for analysing a pdb file.
+"""
+
 from Bio.SeqIO import PdbIO
 from scipy.spatial import distance
 import numpy as np
+from structmap.seqtools import (map_to_sequence,
+                                prot_to_dna_position,
+                                _construct_sub_align)
+from structmap import gentests
 
 def _euclidean_distance_matrix(chain, atom='all'):
     '''Compute the Euclidean distance matrix for all atoms in a pdb chain.
@@ -15,30 +23,30 @@ def _euclidean_distance_matrix(chain, atom='all'):
     reference = []
     coords = []
     #Filter on non-HET atoms
-    for residue in (x for x in chain if x.get_id()[0]==' '):
+    for residue in (x for x in chain if x.get_id()[0] == ' '):
         #If selecting based on all atoms within residue
-        if atom=='all':
+        if atom == 'all':
             for atom in residue:
                 coords.append(atom.get_coord())
                 reference.append(atom.get_full_id()[3][1])
         #If measuring distance on particular atoms
         else:
             if atom in residue:
-                x = atom
+                select_atom = atom
             #Revert to carbon alpha if atom is not found
             else:
-                x = 'CA'
-            coords.append(residue[x].get_coord())
-            reference.append(residue[x].get_full_id()[3][1])
+                select_atom = 'CA'
+            coords.append(residue[select_atom].get_coord())
+            reference.append(residue[select_atom].get_full_id()[3][1])
     #Convert to a np array, and compute Euclidean distance.
     coord_array = np.array(coords)
-    euclid_mat = distance.pdist(coord_array,'euclidean')
+    euclid_mat = distance.pdist(coord_array, 'euclidean')
     #Convert to squareform matrix
     euclid_mat = distance.squareform(euclid_mat)
     ref_array = np.array(reference)
     return euclid_mat, ref_array
 
-def nearby(chain,radius=15,atom='all'):
+def nearby(chain, radius=15, atom='all'):
     '''
     Take a Bio.PDB chain object, and find all residues within a radius of a
     given residue. Return a dictionary containing nearby residues for each
@@ -50,52 +58,22 @@ def nearby(chain,radius=15,atom='all'):
     '''
     #Setup variables
     ref_dict = {}
-    euclidean_distance, reference = _euclidean_distance_matrix(chain,atom)
-    within_radius = euclidean_distance<radius
+    euclidean_distance, reference = _euclidean_distance_matrix(chain, atom)
+    within_radius = euclidean_distance < radius
     near_map = within_radius * reference
     #Iterate over all atoms in Euclidean distance matrix.
-    for i in range(len(near_map)):
-        if near_map[i][i] == 0:
+    for i, atom in enumerate(near_map):
+        if atom[i] == 0:
             continue
-        if near_map[i][i] not in ref_dict:
-            ref_dict[near_map[i][i]] = near_map[i][np.nonzero(near_map[i])]
+        if atom[i] not in ref_dict:
+            ref_dict[atom[i]] = atom[np.nonzero(atom)]
         else:
-            ref_dict[near_map[i][i]] = np.append(ref_dict[near_map[i][i]],
-                                        near_map[i][np.nonzero(near_map[i])])
+            ref_dict[atom[i]] = np.append(ref_dict[atom[i]],
+                                          atom[np.nonzero(atom)])
     #Remove non-unique values.
     for key in ref_dict:
         ref_dict[key] = np.unique(ref_dict[key])
     return ref_dict
-
-
-def _get_nearby(residue, chain, radius='10', atom='CA'):
-    '''
-    DEPRECATED
-    Takes Bio.PDB residue and chain objects as input,and computes the residues
-    which are within a certain radius of the central residue given. Output is a
-    list containing the position of all nearby residues, including the central
-    residue. Optional arguments include the radius within which to measure, and
-    the particular atom from which to measure (carbon-alpha by default).
-    '''
-    nearby_residues = []
-    for x in (x for x in chain if x.get_id()[0]==' '):
-        if x[atom] - residue[atom] <= radius:
-            nearby_residues.append(x.get_id()[1])
-    return nearby_residues
-
-
-def _map_surrounding_residues(chain, radius='10', atom='CA'):
-    '''
-    DEPRECATED
-    Takes Bio.PDB chain and generates a map of surrounding residues for each
-    residue in the chain. Output is a dictionary with each residue as a key,
-    and a list of surrounding residues as a value.
-    '''
-    surr_res_map = {}
-    for residue in (x for x in chain if x.get_id()[0]==' '):
-        nearby_residues = get_nearby(residue,chain,radius,atom)
-        surr_res_map[residue.get_id()[1]] = nearby_residues
-    return surr_res_map
 
 
 def get_pdb_seq(filename):
@@ -105,7 +83,28 @@ def get_pdb_seq(filename):
     '''
     #Open PDB file and get sequence data
     with open(filename, 'r') as f:
-        sequence_iter = [s for s in PdbIO.PdbSeqresIterator(f)]
-        #A bit of manipulation to get Seq object into a string.
-        sequences = [''.join([x for x in s]) for s in sequence_iter]
+        seq = [s for s in PdbIO.PdbSeqresIterator(f)]
+        #A bit of manipulation to get Seq object into a dictionary
+        #Key is chain ID, and value is sequence as a string.
+        sequences = {s.id.split(":")[1]:''.join([x for x in s]) for s in seq}
     return sequences
+
+def map_function(chain, method, data, residues, ref=None):
+    '''Map a function onto PDB residues, return an output value'''
+    output = method(chain, data, residues, ref)
+    return output
+
+def _count_residues(chain, data, residues, ref):
+    return len(residues)
+
+def _tajimas_d(chain, data, residues, ref):
+    alignment = data
+    pdb_sequence = chain.sequence
+    residues = [ref[res] for res in residues]
+    codon_map = prot_to_dna_position(range(len(alignment[0])),
+                                  range(len(alignment[0])//3))
+    codons = [codon_map[res] for res in residues]
+    #Get alignment
+    sub_align = _construct_sub_align(alignment, codons)
+    tajd = gentests.tajimas_d(sub_align)
+    return tajd

@@ -1,59 +1,199 @@
-import Bio.PDB
-from structmap import utils, pdbtools, seqtools, gentests
-from Bio import SeqIO, AlignIO
-from Bio.PDB import DSSP
+"""Main Structmap module.
+Does things such as mapping of Tajima's D to a protein structure.
+This doc-string needs updating."""
 
-class Structure:
+import Bio.PDB
+from Bio.PDB import DSSP
+from Bio import SeqIO, AlignIO
+from structmap import utils, pdbtools, gentests
+from structmap.pdbtools import _tajimas_d
+from structmap.seqtools import map_to_sequence
+
+
+class Structure(object):
+    """Docstring
+    """
     def __init__(self, pdbfile):
         #create pdb parser, get structure.
         parser = Bio.PDB.PDBParser()
         pdbname = pdbfile
         #Get Bio.PDB structure
-        self.structure = parser.get_structure(pdbname,pdbfile)
-        #Get PDB sequences as a list of strings
-        self.sequence = pdbtools.get_pdb_seq(pdbfile)
-        self.chains = {}
-        for model in self.structure:
+        self.structure = parser.get_structure(pdbname, pdbfile)
+        #Get PDB sequences
+        self.sequences = pdbtools.get_pdb_seq(pdbfile)
+        self.models = {model.get_id():Model(self, model, pdbfile) for
+                       model in self.structure}
+
+    def __iter__(self):
+        for key in sorted(self.models):
+            yield self.models[key]
+
+    def __getitem__(self, key):
+        return self.models[key]
+
+    def map(self, data, method='default', ref=None, radius=15, atom='all',
+            output='atom'):
+        """Function which performs a mapping of some parameter or function to
+        a pdb structure, with the ability to apply the function over a
+        '3D sliding window'. The residues within a radius of a central
+        residue are passed to the function, which computes an output value for
+        the central residue. This is performed for each residue in the
+        structure.
+        """
+        #Basic idea, but need to tidy this up
+        for model in self:
             for chain in model:
-                self.chains[chain.get_id()]=Chain(chain, pdbfile)
+                output = chain.map(data, method='default', ref=None, radius=15,
+                                   output='atom')
 
-class Chain:
-    def __init__(self, chain,pdbfile):
+
+class Model(object):
+    """Docstring
+    """
+    def __init__(self, structure, model, pdbfile):
+        self._id = model.get_id()
+        self.model = model
+        self._parent = structure
+        self.chains = {chain.get_id():Chain(self, chain, pdbfile) for
+                       chain in self.model}
+
+    def __iter__(self):
+        for key in sorted(self.chains):
+            yield self.chains[key]
+
+    def __getitem__(self, key):
+        return self.chains[key]
+
+    def parent(self):
+        """Get parent Structure object"""
+        return self._parent
+
+    def get_id(self):
+        """Get model ID"""
+        return self._id
+
+
+class Chain(object):
+    """Docstring
+    """
+    def __init__(self, model, chain, pdbfile):
+        self._id = chain.get_id()
         self.chain = chain
-        model = self.chain.get_parent.get_id()
-        self.dssp = DSSP(model,pdb_file)
+        self._parent = model
+        self.dssp = DSSP(model.model, pdbfile)
+        self.sequence = model.parent().sequences[self.get_id()]
 
-    def nearby(self,radius=15,atom='all'):
-        '''Take a Bio.PDB chain object, and find all residues within a radius of
+    def parent(self):
+        """Get parent Model object"""
+        return self._parent
+
+    def get_id(self):
+        """Get chain ID"""
+        return self._id
+
+    def nearby(self, radius=15, atom='all'):
+        """Take a Bio.PDB chain object, and find all residues within a radius of
         a given residue. Return a dictionary containing nearby residues for each
         residue in the chain.
         Optional parameter is the atom with which to compute distance.
         By default this is 'all', which gets all non-heterologous atoms.
         Other potential options include 'CA', 'CB' etc. If an atom is not found
         within a residue object, then method reverts to using 'CA'.
-        '''
-        self.dist_map = pdbtools.nearby(self.chain,radius,atom)
-        return self.dist_map
+        """
+        dist_map = pdbtools.nearby(self.chain, radius, atom)
+        return dist_map
 
     def rsa(self):
-        '''Use Bio.PDB to calculate relative solvent accessibility.
+        """Use Bio.PDB to calculate relative solvent accessibility.
         Return a dictionary with RSA values for each residue.
-        '''
-        pass
+        """
+        rsa = {}
+        for residue in self.chain:
+            key = (self.get_id(), residue.get_id())
+            if key in self.dssp:
+                rsa[key] = self.dssp[key][3]
+        return rsa
+
+    def map(self, data, method='default', ref=None, radius=15, atom='all',
+            output='atom'):
+        """Perform a mapping of some parameter or function to a pdb structure,
+        with the ability to apply the function over a '3D sliding window'.
+        The residues within a radius of a central residue are passed to the
+        function, which computes an output value for the central residue.
+        This is performed for each residue in the structure.
+        """
+        methods = {"default":'some reference to a function',
+                   "tajimasd":_tajimas_d}
+        residue_map = pdbtools.nearby(self.chain, radius=radius, atom=atom)
+        results = {}
+        if method == 'tajimasd' and ref is None:
+            ref = data.translate(0)
+        pdb_to_ref, ref_to_pdb = map_to_sequence(self.sequence, ref)
+        if method in methods:
+            method = methods[method]
+        for residue in residue_map:
+            results[residue] = pdbtools.map_function(self, method, data,
+                                                     residue_map[residue],
+                                                     ref=pdb_to_ref)
+        return results
+
+    def write_to_atom(self, data, output):
+        #For each atom in the structure, write an output score based on the data
+        #given, presuming (key,value) in a dictionary with key corresponding to
+        #a residue number.
+        with open(output, 'w') as f:
+            for res in data:
+                residue = self.chain[int(res)]
+                for atom in residue:
+                    line = ','.join([str(x) for x in [atom.serial_number,data[res]]]) + '\n'
+                    f.write(line)
 
 
-class Sequence:
+class Sequence(object):
+    """Docstring
+    """
     def __init__(self, seqfile):
         self.seqrecord = SeqIO.read(open(seqfile), "fasta")
 
     def sequence(self):
+        """Get protein sequence as a string"""
         sequence = utils.to_string(self.seqrecord)
         return sequence
 
 
-class SequenceAlignment:
+class SequenceAlignment(object):
+    """Docstring
+    """
     def __init__(self, alignfile, file_format='fasta'):
-        self.alignment = AlignIO.read(alignfile,file_format)
+        self.alignment = AlignIO.read(alignfile, file_format)
 
-    def tajimas_d(self,window=None,step=3):
-        return gentests.tajimas_d(self.alignment,window,step)
+    def __getitem__(self, key):
+        return self.alignment[key]
+
+    def translate(self,index):
+        translation = self.alignment[index].seq.translate(to_stop=True)
+        return translation
+
+    def tajimas_d(self, window=None, step=3):
+        """Calculate Tajima's D on a SequenceAlignment object.
+
+        If no window parameter is passed to the function, then the function
+        calculates Tajima's D over the whole sequence alignment and
+        returns a single numerical result.
+
+        If a window size is given, then the function returns a dictionary
+        of Tajima's D values
+
+        :param window: The size of the sliding window over which Tajima's D is
+        calculated
+        :type window: int
+        :param step: Step size for sliding window calculation
+        :type step: int
+        :returns: *key: window midpoint
+                  *value: Tajima's D value for window
+        """
+        try:
+            return gentests.tajimas_d(self.alignment, window, step)
+        except TypeError:
+            print("Error calculating Tajima's D. Please check inputs to " +
+                  "Tajima's D function.")

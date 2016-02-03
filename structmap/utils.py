@@ -1,5 +1,8 @@
+"""Helper module that contains various utility functions for structmap
+package.
+"""
 import re
-from Bio import SeqIO
+import doctest
 
 def to_string(sequence):
     '''
@@ -23,5 +26,4 @@ def is_unambig_dna(text, search=re.compile(r'[^ATGCatgc]').search):
 
 if __name__ == '__main__':
     #Test docstrings
-    import doctest
     doctest.testmod()

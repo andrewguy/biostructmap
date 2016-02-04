@@ -1,6 +1,7 @@
 """Main Structmap module.
 Does things such as mapping of Tajima's D to a protein structure.
 This doc-string needs updating."""
+from __future__ import absolute_import, division, print_function
 
 import Bio.PDB
 from Bio.PDB import DSSP
@@ -11,8 +12,7 @@ from structmap.seqtools import map_to_sequence
 
 
 class Structure(object):
-    """Docstring
-    """
+    """A class to hold a PDB structure object."""
     def __init__(self, pdbfile):
         #create pdb parser, get structure.
         parser = Bio.PDB.PDBParser()
@@ -31,8 +31,7 @@ class Structure(object):
     def __getitem__(self, key):
         return self.models[key]
 
-    def map(self, data, method='default', ref=None, radius=15, atom='all',
-            output='atom'):
+    def map(self, data, method='default', ref=None, radius=15, atom='all'):
         """Function which performs a mapping of some parameter or function to
         a pdb structure, with the ability to apply the function over a
         '3D sliding window'. The residues within a radius of a central
@@ -43,13 +42,12 @@ class Structure(object):
         #Basic idea, but need to tidy this up
         for model in self:
             for chain in model:
-                output = chain.map(data, method='default', ref=None, radius=15,
-                                   output='atom')
+                output = chain.map(data, method=method, ref=ref,
+                                   radius=radius, atom=atom)
 
 
 class Model(object):
-    """Docstring
-    """
+    """A class to hold a PDB model object. """
     def __init__(self, structure, model, pdbfile):
         self._id = model.get_id()
         self.model = model
@@ -74,8 +72,7 @@ class Model(object):
 
 
 class Chain(object):
-    """Docstring
-    """
+    """A class to hold a PDB chain object."""
     def __init__(self, model, chain, pdbfile):
         self._id = chain.get_id()
         self.chain = chain
@@ -114,8 +111,7 @@ class Chain(object):
                 rsa[key] = self.dssp[key][3]
         return rsa
 
-    def map(self, data, method='default', ref=None, radius=15, atom='all',
-            output='atom'):
+    def map(self, data, method='default', ref=None, radius=15, atom='all'):
         """Perform a mapping of some parameter or function to a pdb structure,
         with the ability to apply the function over a '3D sliding window'.
         The residues within a radius of a central residue are passed to the
@@ -128,7 +124,7 @@ class Chain(object):
         results = {}
         if method == 'tajimasd' and ref is None:
             ref = data.translate(0)
-        pdb_to_ref, ref_to_pdb = map_to_sequence(self.sequence, ref)
+        pdb_to_ref, _ = map_to_sequence(self.sequence, ref)
         if method in methods:
             method = methods[method]
         for residue in residue_map:
@@ -138,6 +134,9 @@ class Chain(object):
         return results
 
     def write_to_atom(self, data, output):
+        """Write score for each atom in a structure to a file, based on
+        a data dictionary mapping output score to residue number.
+        """
         #For each atom in the structure, write an output score based on the data
         #given, presuming (key,value) in a dictionary with key corresponding to
         #a residue number.
@@ -145,13 +144,13 @@ class Chain(object):
             for res in data:
                 residue = self.chain[int(res)]
                 for atom in residue:
-                    line = ','.join([str(x) for x in [atom.serial_number,data[res]]]) + '\n'
+                    data_pt = [str(x) for x in [atom.serial_number, data[res]]]
+                    line = ','.join(data_pt) + '\n'
                     f.write(line)
 
 
 class Sequence(object):
-    """Docstring
-    """
+    """A class to hold a protein sequence"""
     def __init__(self, seqfile):
         self.seqrecord = SeqIO.read(open(seqfile), "fasta")
 
@@ -162,7 +161,11 @@ class Sequence(object):
 
 
 class SequenceAlignment(object):
-    """Docstring
+    """A class to hold a multiple sequence alignment object.
+    Methods are:
+        translate - translate to a protein sequence
+        tajimas_d - calculate Tajima's D over a sliding window, or for the
+        entire sequence.
     """
     def __init__(self, alignfile, file_format='fasta'):
         self.alignment = AlignIO.read(alignfile, file_format)
@@ -170,7 +173,8 @@ class SequenceAlignment(object):
     def __getitem__(self, key):
         return self.alignment[key]
 
-    def translate(self,index):
+    def translate(self, index):
+        """Translate to protein sequence. Translates until stop codon."""
         translation = self.alignment[index].seq.translate(to_stop=True)
         return translation
 

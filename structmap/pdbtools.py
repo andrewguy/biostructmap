@@ -1,17 +1,17 @@
 """Helper module for structmap package. Contains a collection of tools
 for analysing a pdb file.
 """
+from __future__ import absolute_import, division, print_function
 
 from Bio.SeqIO import PdbIO
 from scipy.spatial import distance
 import numpy as np
-from structmap.seqtools import (map_to_sequence,
-                                prot_to_dna_position,
+from structmap.seqtools import (prot_to_dna_position,
                                 _construct_sub_align)
 from structmap import gentests
 
 def _euclidean_distance_matrix(chain, atom='all'):
-    '''Compute the Euclidean distance matrix for all atoms in a pdb chain.
+    """Compute the Euclidean distance matrix for all atoms in a pdb chain.
     Return the euclidean distance matrix and a reference list of all atoms
     in the model (positionally matched to the euclidean matrix).
     Optional parameter is the atom in each residue with which to compute a
@@ -19,7 +19,7 @@ def _euclidean_distance_matrix(chain, atom='all'):
     non-heterologous atoms. Other potential options include 'CA', 'CB' etc.
     If an atom is not found within a residue object, then method reverts to
     using 'CA'.
-    '''
+    """
     reference = []
     coords = []
     #Filter on non-HET atoms
@@ -47,7 +47,7 @@ def _euclidean_distance_matrix(chain, atom='all'):
     return euclid_mat, ref_array
 
 def nearby(chain, radius=15, atom='all'):
-    '''
+    """
     Take a Bio.PDB chain object, and find all residues within a radius of a
     given residue. Return a dictionary containing nearby residues for each
     residue in the chain.
@@ -55,7 +55,7 @@ def nearby(chain, radius=15, atom='all'):
     this is 'all', which gets all non-heterologous atoms. Other potential
     options include 'CA', 'CB' etc. If an atom is not found within a residue
     object, then method reverts to using 'CA'.
-    '''
+    """
     #Setup variables
     ref_dict = {}
     euclidean_distance, reference = _euclidean_distance_matrix(chain, atom)
@@ -77,10 +77,10 @@ def nearby(chain, radius=15, atom='all'):
 
 
 def get_pdb_seq(filename):
-    '''
+    """
     Get a protein sequence from a PDB file.
     Will return multiple sequences if PDB file contains several chains.
-    '''
+    """
     #Open PDB file and get sequence data
     with open(filename, 'r') as f:
         seq = [s for s in PdbIO.PdbSeqresIterator(f)]
@@ -90,21 +90,29 @@ def get_pdb_seq(filename):
     return sequences
 
 def map_function(chain, method, data, residues, ref=None):
-    '''Map a function onto PDB residues, return an output value'''
+    """Map a function onto PDB residues, return an output value"""
     output = method(chain, data, residues, ref)
     return output
 
-def _count_residues(chain, data, residues, ref):
+def _count_residues(_chain, _data, residues, _ref):
+    """Simple function to count the number of residues within a radius"""
     return len(residues)
 
-def _tajimas_d(chain, data, residues, ref):
-    alignment = data
-    pdb_sequence = chain.sequence
+def _tajimas_d(_chain, alignment, residues, ref):
+    """"Calculate Tajimas D for selected residues within a PDB chain.
+    input is Chain object, multiple sequence alignment object,
+    dictionary of surrounding residues, and a dictionary giving mapping
+    of PDB residue number to reference sequence residue number.
+    """
+    #Convert PDB residue numbering to reference numbering
     residues = [ref[res] for res in residues]
+    #Get lookup dictionary for bp position from residue numbers.
     codon_map = prot_to_dna_position(range(len(alignment[0])),
-                                  range(len(alignment[0])//3))
+                                     range(len(alignment[0])//3))
+    #Get list of codons that correspond to selected residues
     codons = [codon_map[res] for res in residues]
-    #Get alignment
+    #Get alignment bp from selected codons
     sub_align = _construct_sub_align(alignment, codons)
+    #Compute Tajima's D using selected codons.
     tajd = gentests.tajimas_d(sub_align)
     return tajd

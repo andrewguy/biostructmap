@@ -1,6 +1,8 @@
 """Helper module that contains various utility functions for structmap
 package.
 """
+from __future__ import absolute_import, division, print_function
+
 import re
 import doctest
 

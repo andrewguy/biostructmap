@@ -1,19 +1,21 @@
 """A collection of tools to handle genomic tests.
 Part of the structmap package.
 """
+from __future__ import absolute_import, division, print_function
+
 import doctest
 import dendropy
 from structmap.seqtools import (_var_site, _join_alignments,
                                 _sliding_window_var_sites)
 
 def tajimas_d(alignment, window=None, step=3):
-    '''
+    """
     Use DendroPy package to calculate Tajimas D.
     Several optimisations performed to speed up the calculation
     Input needs to be a string representing multiple sequence alignments in
     fasta format.
     Output is Tajima's D value.
-    '''
+    """
     if window:
         results = []
         prev_win = None
@@ -36,9 +38,9 @@ def tajimas_d(alignment, window=None, step=3):
         return _tajimas_d(alignment)
 
 def _tajimas_d(alignment):
-    '''
+    """
     Use DendroPy to calculate tajimas D.
-    '''
+    """
     if not alignment or len(alignment[0]) == 0:
         return None
     try:

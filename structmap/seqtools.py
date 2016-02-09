@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function
 from Bio import AlignIO, pairwise2 as pw2
 from Bio.SubsMat import MatrixInfo
 
-def _sliding_window(seq_align, window, isfile=True, fasta_out=False):
+def _sliding_window(seq_align, window, step=3, isfile=True, fasta_out=False):
     """
     Generator function that takes a multiple sequence alignment, and generates a
     Multiple Sequence Alignment over a sliding window.
@@ -22,7 +22,7 @@ def _sliding_window(seq_align, window, isfile=True, fasta_out=False):
         alignments = seq_align
     #Length of alignments
     length = len(alignments[0])
-    for i in range(length-window):
+    for i in range(0, length-window, step):
         alignment = alignments[:, i:i+window]
         if fasta_out:
             alignment = alignment.format('fasta')
@@ -54,7 +54,7 @@ def _sliding_window_var_sites(seq_align, window, step=3, isfile=True):
     alignment = _join_alignments(initial_sites)
     yield alignment
     #Add/remove sites from the end/start of window as appropriate.
-    for i in range((length-window)//step):
+    for i in range(0, (length-window), step):
         for j in range(step):
             if i + j in align_dict:
                 alignment = alignment[:, 1:]
@@ -130,9 +130,10 @@ def map_to_sequence(compseq, refseq):
 
 def _construct_sub_align(alignments, codons):
     """
-    Take a multiple sequence alignment object, and create a subset of codons
-    based on an input list. Return subset of the initial alignment as a
-    multiple sequence alignment object.
+    Take a multiple sequence alignment object, and return a subset of codons
+    based on an input list in the form [(1,2,3),(4,5,6),...].
+    Return subset of the initial alignment as a multiple sequence alignment
+    object.
     """
     codons = [x for sublist in codons for x in sublist]
     sub_align = {}
@@ -150,6 +151,11 @@ def prot_to_dna_position(dna_indices, prot_indices):
     of protein residue numbers matching the nucleotide positions,
     and return a dictionary with key: residue number (int), value: nucleotide
     positions (list of 3 values). Eg. {4:[7,8,9]}
+    >>> prot_indices = [5,6,8]
+    >>> dna_indices = range(1,10)
+    >>> x = prot_to_dna_position(dna_indices,prot_indices)
+    >>> print([(y,x[y]) for y in sorted(x)])
+    [(5, (1, 2, 3)), (6, (4, 5, 6)), (8, (7, 8, 9))]
     """
     lookup_dict = {x:tuple(dna_indices[i*3:(i+1)*3]) for i, x in
                    enumerate(prot_indices)}

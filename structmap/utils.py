@@ -4,7 +4,6 @@ package.
 from __future__ import absolute_import, division, print_function
 
 import re
-import doctest
 
 def to_string(sequence):
     '''
@@ -24,8 +23,3 @@ def is_unambig_dna(text, search=re.compile(r'[^ATGCatgc]').search):
     False
     '''
     return not bool(search(text))
-
-
-if __name__ == '__main__':
-    #Test docstrings
-    doctest.testmod()

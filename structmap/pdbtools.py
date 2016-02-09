@@ -10,7 +10,7 @@ from structmap.seqtools import (prot_to_dna_position,
                                 _construct_sub_align)
 from structmap import gentests
 
-def _euclidean_distance_matrix(chain, atom='all'):
+def _euclidean_distance_matrix(chain, selector='all'):
     """Compute the Euclidean distance matrix for all atoms in a pdb chain.
     Return the euclidean distance matrix and a reference list of all atoms
     in the model (positionally matched to the euclidean matrix).
@@ -25,14 +25,14 @@ def _euclidean_distance_matrix(chain, atom='all'):
     #Filter on non-HET atoms
     for residue in (x for x in chain if x.get_id()[0] == ' '):
         #If selecting based on all atoms within residue
-        if atom == 'all':
+        if selector == 'all':
             for atom in residue:
                 coords.append(atom.get_coord())
                 reference.append(atom.get_full_id()[3][1])
         #If measuring distance on particular atoms
         else:
-            if atom in residue:
-                select_atom = atom
+            if selector in residue:
+                select_atom = selector
             #Revert to carbon alpha if atom is not found
             else:
                 select_atom = 'CA'
@@ -46,7 +46,7 @@ def _euclidean_distance_matrix(chain, atom='all'):
     ref_array = np.array(reference)
     return euclid_mat, ref_array
 
-def nearby(chain, radius=15, atom='all'):
+def nearby(chain, radius=15, selector='all'):
     """
     Take a Bio.PDB chain object, and find all residues within a radius of a
     given residue. Return a dictionary containing nearby residues for each
@@ -58,13 +58,11 @@ def nearby(chain, radius=15, atom='all'):
     """
     #Setup variables
     ref_dict = {}
-    euclidean_distance, reference = _euclidean_distance_matrix(chain, atom)
+    euclidean_distance, reference = _euclidean_distance_matrix(chain, selector)
     within_radius = euclidean_distance < radius
     near_map = within_radius * reference
     #Iterate over all atoms in Euclidean distance matrix.
     for i, atom in enumerate(near_map):
-        if atom[i] == 0:
-            continue
         if atom[i] not in ref_dict:
             ref_dict[atom[i]] = atom[np.nonzero(atom)]
         else:
@@ -101,18 +99,27 @@ def _count_residues(_chain, _data, residues, _ref):
 def _tajimas_d(_chain, alignment, residues, ref):
     """"Calculate Tajimas D for selected residues within a PDB chain.
     input is Chain object, multiple sequence alignment object,
-    dictionary of surrounding residues, and a dictionary giving mapping
+    list of surrounding residues, and a dictionary giving mapping
     of PDB residue number to reference sequence residue number.
     """
     #Convert PDB residue numbering to reference numbering
-    residues = [ref[res] for res in residues]
+    reference_residues = [ref[res] for res in residues]
     #Get lookup dictionary for bp position from residue numbers.
     codon_map = prot_to_dna_position(range(len(alignment[0])),
                                      range(len(alignment[0])//3))
     #Get list of codons that correspond to selected residues
-    codons = [codon_map[res] for res in residues]
+    codons = [codon_map[res] for res in reference_residues]
     #Get alignment bp from selected codons
     sub_align = _construct_sub_align(alignment, codons)
     #Compute Tajima's D using selected codons.
     tajd = gentests.tajimas_d(sub_align)
     return tajd
+
+def _default_mapping(_chain, data, residues, ref):
+    """"Calculate an average of all data points over selected residues.
+    """
+    #Convert PDB residue numbering to reference numbering
+    reference_residues = [ref[res] for res in residues]
+    data_points = [data[res] for res in reference_residues]
+    average = np.mean(data_points)
+    return average

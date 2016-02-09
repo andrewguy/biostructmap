@@ -3,7 +3,6 @@ Part of the structmap package.
 """
 from __future__ import absolute_import, division, print_function
 
-import doctest
 import dendropy
 from structmap.seqtools import (_var_site, _join_alignments,
                                 _sliding_window_var_sites)
@@ -47,10 +46,6 @@ def _tajimas_d(alignment):
         seq = dendropy.DnaCharacterMatrix.get(data=alignment.format('fasta'),
                                               schema='fasta')
         taj_d = dendropy.calculate.popgenstat.tajimas_d(seq)
-    except TypeError:
+    except ZeroDivisionError:
         taj_d = None
     return taj_d
-
-if __name__ == '__main__':
-    #Test docstrings
-    doctest.testmod()

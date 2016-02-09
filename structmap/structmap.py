@@ -7,7 +7,7 @@ import Bio.PDB
 from Bio.PDB import DSSP
 from Bio import SeqIO, AlignIO
 from structmap import utils, pdbtools, gentests
-from structmap.pdbtools import _tajimas_d
+from structmap.pdbtools import _tajimas_d, _default_mapping
 from structmap.seqtools import map_to_sequence
 
 
@@ -31,7 +31,7 @@ class Structure(object):
     def __getitem__(self, key):
         return self.models[key]
 
-    def map(self, data, method='default', ref=None, radius=15, atom='all'):
+    def map(self, data, method='default', ref=None, radius=15, selector='all'):
         """Function which performs a mapping of some parameter or function to
         a pdb structure, with the ability to apply the function over a
         '3D sliding window'. The residues within a radius of a central
@@ -39,11 +39,13 @@ class Structure(object):
         the central residue. This is performed for each residue in the
         structure.
         """
-        #Basic idea, but need to tidy this up
+        output = {}
         for model in self:
             for chain in model:
-                output = chain.map(data, method=method, ref=ref,
-                                   radius=radius, atom=atom)
+                unique_id = (model.get_id(), chain.get_id())
+                output[unique_id] = chain.map(data, method=method, ref=ref,
+                                              radius=radius, selector=selector)
+        return output
 
 
 class Model(object):
@@ -80,6 +82,13 @@ class Chain(object):
         self.dssp = DSSP(model.model, pdbfile)
         self.sequence = model.parent().sequences[self.get_id()]
 
+    def __iter__(self):
+        for residue in self.chain:
+            yield residue
+
+    def __getitem__(self, key):
+        return self.chain[key]
+
     def parent(self):
         """Get parent Model object"""
         return self._parent
@@ -100,7 +109,7 @@ class Chain(object):
         dist_map = pdbtools.nearby(self.chain, radius, atom)
         return dist_map
 
-    def rsa(self):
+    def rel_solvent_access(self):
         """Use Bio.PDB to calculate relative solvent accessibility.
         Return a dictionary with RSA values for each residue.
         """
@@ -111,19 +120,21 @@ class Chain(object):
                 rsa[key] = self.dssp[key][3]
         return rsa
 
-    def map(self, data, method='default', ref=None, radius=15, atom='all'):
+    def map(self, data, method='default', ref=None, radius=15, selector='all'):
         """Perform a mapping of some parameter or function to a pdb structure,
         with the ability to apply the function over a '3D sliding window'.
         The residues within a radius of a central residue are passed to the
         function, which computes an output value for the central residue.
         This is performed for each residue in the structure.
         """
-        methods = {"default":'some reference to a function',
+        methods = {"default":_default_mapping,
                    "tajimasd":_tajimas_d}
-        residue_map = pdbtools.nearby(self.chain, radius=radius, atom=atom)
+        residue_map = pdbtools.nearby(self.chain, radius=radius, selector=selector)
         results = {}
         if method == 'tajimasd' and ref is None:
             ref = data.translate(0)
+        elif ref is None:
+            ref = self.sequence
         pdb_to_ref, _ = map_to_sequence(self.sequence, ref)
         if method in methods:
             method = methods[method]
@@ -174,8 +185,12 @@ class SequenceAlignment(object):
         return self.alignment[key]
 
     def translate(self, index):
-        """Translate to protein sequence. Translates until stop codon."""
-        translation = self.alignment[index].seq.translate(to_stop=True)
+        """Translate to protein sequence. Translates until stop codon.
+        Trims sequence to a multiple of 3.
+        """
+        length = len(self.alignment[index])
+        overhang = length % 3
+        translation = self.alignment[index,0:length-overhang].seq.translate(to_stop=True)
         return translation
 
     def tajimas_d(self, window=None, step=3):
@@ -201,3 +216,4 @@ class SequenceAlignment(object):
         except TypeError:
             print("Error calculating Tajima's D. Please check inputs to " +
                   "Tajima's D function.")
+            raise TypeError

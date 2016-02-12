@@ -113,7 +113,7 @@ class TestPdbtools(TestCase):
               'KKYSEKCSNLNFEDEFKEELHSDYKNKCTMCPEVK'
               }
         self.assertEqual(sequence, to_match)
-        with self.assertRaises(FileNotFoundError):
+        with self.assertRaises(IOError):
             pdbtools.get_pdb_seq('not_a_file')
 
     def test_map_function(self):

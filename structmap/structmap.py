@@ -190,7 +190,7 @@ class SequenceAlignment(object):
         """
         length = len(self.alignment[index])
         overhang = length % 3
-        translation = self.alignment[index,0:length-overhang].seq.translate(to_stop=True)
+        translation = self.alignment[index, 0:length-overhang].seq.translate(to_stop=True)
         return translation
 
     def tajimas_d(self, window=None, step=3):

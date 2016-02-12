@@ -41,7 +41,7 @@ setup(
     author='Andrew Guy',
     tests_require=['pytest'],
     install_requires=['Biopython>=1.66',
-                    'DendroPy>=4.0',
+                    'DendroPy>=4.0.3',
                     'NumPy',
                     'SciPy'
                     ],

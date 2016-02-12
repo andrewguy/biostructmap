@@ -1,0 +1,22 @@
+name: structmap
+dependencies:
+- biopython=1.66=np110py35_0
+- libgfortran=1.0=0
+- mkl=11.3.1=0
+- numpy=1.10.4=py35_0
+- openssl=1.0.2f=0
+- pip=8.0.2=py35_0
+- py=1.4.31=py35_0
+- pytest=2.8.5=py35_0
+- python=3.5.1=0
+- readline=6.2=2
+- scipy=0.17.0=np110py35_1
+- setuptools=19.6.2=py35_0
+- sqlite=3.9.2=0
+- tk=8.5.18=0
+- wheel=0.29.0=py35_0
+- xz=5.0.5=0
+- zlib=1.2.8=0
+- pip:
+  - dendropy==4.0.3
+

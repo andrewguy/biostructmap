@@ -100,15 +100,10 @@ def _tajimas_d(_chain, alignment, residues, ref):
     """"Calculate Tajimas D for selected residues within a PDB chain.
     input is Chain object, multiple sequence alignment object,
     list of surrounding residues, and a dictionary giving mapping
-    of PDB residue number to reference sequence residue number.
+    of PDB residue number to codon positions.
     """
-    #Convert PDB residue numbering to reference numbering
-    reference_residues = [ref[res] for res in residues]
-    #Get lookup dictionary for bp position from residue numbers.
-    codon_map = prot_to_dna_position(range(len(alignment[0])),
-                                     range(len(alignment[0])//3))
     #Get list of codons that correspond to selected residues
-    codons = [codon_map[res] for res in reference_residues]
+    codons = [ref[res] for res in residues]
     #Get alignment bp from selected codons
     sub_align = _construct_sub_align(alignment, codons)
     #Compute Tajima's D using selected codons.

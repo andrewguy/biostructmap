@@ -3,6 +3,11 @@ Part of the structmap package.
 """
 from __future__ import absolute_import, division, print_function
 
+import subprocess
+import tempfile
+import re
+import operator
+
 from Bio import AlignIO, pairwise2 as pw2
 from Bio.SubsMat import MatrixInfo
 
@@ -134,6 +139,7 @@ def _construct_sub_align(alignments, codons):
     based on an input list in the form [(1,2,3),(4,5,6),...].
     Return subset of the initial alignment as a multiple sequence alignment
     object.
+    Note that codons should be 1-indexed.
     """
     codons = [x for sublist in codons for x in sublist]
     sub_align = {}
@@ -141,7 +147,8 @@ def _construct_sub_align(alignments, codons):
     #within initial window
     sub_align[-1] = alignments[:, 0:0]
     for codon in codons:
-        sub_align[codon] = alignments[:, codon:codon+1]
+        #List is zero indexed, hence the need to call codon-1
+        sub_align[codon] = alignments[:, codon - 1: codon]
     output = _join_alignments(sub_align)
     return output
 
@@ -160,3 +167,106 @@ def prot_to_dna_position(dna_indices, prot_indices):
     lookup_dict = {x:tuple(dna_indices[i*3:(i+1)*3]) for i, x in
                    enumerate(prot_indices)}
     return lookup_dict
+
+def align_protein_to_dna(prot_seq, dna_seq):
+    """
+    Aligns a protein sequence to a genomic sequence. Takes into consideration
+    introns frameshifts and reverse-sense translation.
+
+    Note: This method uses the external program Exonerate:
+          http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate
+          This needs to be installed in the users Path.
+
+    Output from align_protein_to_dna is a dictionary mapping protein residue
+    numbers to codon positions: {3:(6,7,8), 4:(9,10,11), ...}
+    """
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as protein_seq_file, tempfile.NamedTemporaryFile(mode='w', delete=False) as dna_seq_file:
+        protein_seq_file.write(">\n" + prot_seq + "\n")
+        dna_seq_file.write(">\n" + dna_seq + "\n")
+        dna_seq_file.flush()
+        protein_seq_file.flush()
+        alignment = subprocess.check_output(["exonerate",
+                                             "--model", "protein2genome",
+                                             "--showalignment", "False",
+                                             "--showvulgar", "True",
+                                             protein_seq_file.name,
+                                             dna_seq_file.name])
+    vulgar_format = re.search(r"(?<=vulgar:).*(?=\n)", alignment.decode("utf-8")).group(0)
+    protein_start = vulgar_format.split()[0]
+    dna_start = vulgar_format.split()[3]
+    matches = vulgar_format.split()[7:]
+    direction = vulgar_format.split()[5]
+    protein_count = int(protein_start)
+    dna_count = int(dna_start)
+
+    if direction == "+":
+        step = operator.add
+    elif direction == "-":
+        step = operator.sub
+        dna_count += 1
+    else:
+        raise UserWarning("Exonerate direction does not match either '+' or '-'")
+
+
+    if len(matches) % 3:
+        raise UserWarning("The vulgar output from exonerate has failed to parse correctly")
+    #Split output into [modifier, query_count, ref_count] triples
+    matches = [matches[i*3:i*3+3] for i in range(len(matches)//3)]
+    matched_bases = {}
+
+    codon = []
+
+    #Convert vulgar format to dictionary with residue: codon pairs
+    for region in matches:
+        modifier = region[0]
+        count1 = int(region[1])
+        count2 = int(region[2])
+        if modifier == 'M':
+            if count1 != count2 / 3:
+                raise UserWarning("Match in vulgar output is possibly " +
+                                 "incorrect - number of protein residues " +
+                                 "should be the number of bases divided by 3")
+            for i in range(count2):
+                dna_count = step(dna_count, 1)
+                codon.append(dna_count)
+                if len(codon) == 3:
+                    protein_count += 1
+                    matched_bases[protein_count] = tuple(codon)
+                    codon = []
+        if modifier == 'C':
+            if count1 != count2 / 3:
+                raise UserWarning("Codon in vulgar output is possibly " +
+                                 "incorrect - number of protein residues " +
+                                 "should be the number of bases divided by 3")
+            raise UserWarning("Unexpected output in vulgar format - not " +
+                              "expected to need functionality for 'codon' " +
+                              "modifier")
+        if modifier == 'G' or modifier == 'N':
+            if codon:
+                raise UserWarning("Warning - split codon over gap in " +
+                                  "exonerate output!")
+            protein_count = protein_count + count1
+            dna_count = step(dna_count, count2)
+        if modifier == '5' or modifier == '3':
+            if count1 != 0:
+                raise UserWarning("Warning - protein count should be 0 in " +
+                                  "exonerate output over intron splice sites.")
+            dna_count = step(dna_count, count2)
+        if modifier == 'I':
+            if count1 != 0:
+                raise UserWarning("Warning - protein count should be 0 in " +
+                                  "exonerate output over intron.")
+            dna_count = step(dna_count, count2)
+        if modifier == 'S':
+            for i in range(count2):
+                dna_count = step(dna_count, 1)
+                codon.append(dna_count)
+                if len(codon) == 3:
+                    protein_count += 1
+                    matched_bases.append([protein_count, tuple(codon)])
+                    codon = []
+        if modifier == 'F':
+            raise UserWarning("Unexpected frameshift in exonerate output - " +
+                              "check alignment input.")
+
+    return matched_bases

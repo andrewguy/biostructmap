@@ -9,7 +9,8 @@ from structmap import utils, structmap, seqtools, gentests, pdbtools
 import Bio.PDB
 from Bio import AlignIO
 from Bio.Seq import Seq
-from structmap.seqtools import _sliding_window, _sliding_window_var_sites, _construct_sub_align
+from structmap.seqtools import (_sliding_window, _sliding_window_var_sites,
+                               _construct_sub_align, align_protein_to_dna)
 from structmap.gentests import _tajimas_d
 from structmap.pdbtools import _euclidean_distance_matrix, _tajimas_d
 
@@ -127,7 +128,7 @@ class TestPdbtools(TestCase):
 
     def test_tajimas_d_on_structure(self):
         test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
-        test_ref_dict = {x+86:x for x in range(18)}
+        test_ref_dict = {x+86: (x*3, x*3 + 1, x*3 + 2) for x in range(18)}
         test_surrounding_residues = range(86,104)
         result = _tajimas_d(self.test_chain, test_sequence_alignment,
                             test_surrounding_residues, test_ref_dict)
@@ -135,7 +136,7 @@ class TestPdbtools(TestCase):
 
     def test_tajimas_d_on_structure_with_subset_of_reference_residues(self):
         test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
-        test_ref_dict = {x+86:x for x in range(18)}
+        test_ref_dict = {x+86: (x*3, x*3 + 1, x*3 + 2) for x in range(18)}
         test_surrounding_residues = range(86,96)
         result = _tajimas_d(self.test_chain, test_sequence_alignment,
                             test_surrounding_residues, test_ref_dict)
@@ -266,7 +267,32 @@ class TestSeqtools(TestCase):
         self.assertEqual(forward_match, test_map_forward)
         self.assertEqual(reverse_match, test_map_reverse)
 
+    def test_protein_dna_alignment(self):
+        """Need to account for an intron frameshift when converting from DNA to
+        protein sequence.
+        """
+        dna = 'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT'
+        protein = 'MKCNISIYFFMKCNISIYFF'
+        result = seqtools.align_protein_to_dna(protein, dna)
+        result_keys_to_match = [i for i in range(1,21)]
+        result_codons_to_match = [(i*3-2, i*3-1, i*3) for i in range(1,21)]
+        self.assertEqual(result_keys_to_match, sorted(result))
+        sorted_codons = [result[i] for i in sorted(result)]
+        self.assertEqual(result_codons_to_match, sorted_codons)
 
+    def test_protein_dna_alignment_with_intron(self):
+        """Need to account for an intron frameshift when converting from DNA to
+        protein sequence.
+        NEED TO WRITE THIS TEST
+        """
+        dna = 'ATGAAATGTAATATTAGTATATATTTTTTT' + 'GTTGTATAG' + 'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT'
+        protein = 'MKCNISIYFFMKCNISIYFFMKCNISIYFF'
+        result = seqtools.align_protein_to_dna(protein, dna)
+        result_keys_to_match = [i for i in range(1,11)] + [i for i in range(11,31)]
+        result_codons_to_match = [(i*3-2, i*3-1, i*3) for i in range(1,11)] + [(i*3-2, i*3-1, i*3) for i in range(14,34)]
+        self.assertEqual(result_keys_to_match, sorted(result))
+        sorted_codons = [result[i] for i in sorted(result)]
+        self.assertEqual(result_codons_to_match, sorted_codons)
 
     def test_prot_to_dna_position(self):
         prot_indices = [5,6,8]
@@ -276,7 +302,7 @@ class TestSeqtools(TestCase):
         self.assertEqual(result, to_match)
 
     def test_sub_align(self):
-        codons = [(0,1,2),(3,4,5),(9,10,11)]
+        codons = [(1,2,3),(4,5,6),(10,11,12)]
         result = _construct_sub_align(self.alignment, codons)
         to_match = self.alignment[:,0:6] + self.alignment[:,9:12]
         self.assertEqual(to_match.format('fasta'), result.format('fasta'))

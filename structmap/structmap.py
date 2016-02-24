@@ -8,7 +8,7 @@ from Bio.PDB import DSSP
 from Bio import SeqIO, AlignIO
 from structmap import utils, pdbtools, gentests
 from structmap.pdbtools import _tajimas_d, _default_mapping
-from structmap.seqtools import map_to_sequence
+from structmap.seqtools import map_to_sequence, align_protein_to_dna
 
 
 class Structure(object):
@@ -131,11 +131,12 @@ class Chain(object):
                    "tajimasd":_tajimas_d}
         residue_map = pdbtools.nearby(self.chain, radius=radius, selector=selector)
         results = {}
-        if method == 'tajimasd' and ref is None:
-            ref = data.translate(0)
-        elif ref is None:
+        if ref is None:
             ref = self.sequence
-        pdb_to_ref, _ = map_to_sequence(self.sequence, ref)
+        if method == 'tajimasd':
+            pdb_to_ref = align_protein_to_dna(ref, ''.join([x for x in data[0]]))
+        else:
+            pdb_to_ref, _ = map_to_sequence(self.sequence, ref)
         if method in methods:
             method = methods[method]
         for residue in residue_map:

@@ -145,7 +145,7 @@ class Chain(object):
                                                      ref=pdb_to_ref)
         return results
 
-    def write_to_atom(self, data, output):
+    def write_to_atom(self, data, output, sep=','):
         """Write score for each atom in a structure to a file, based on
         a data dictionary mapping output score to residue number.
         """
@@ -157,9 +157,18 @@ class Chain(object):
                 residue = self.chain[int(res)]
                 for atom in residue:
                     data_pt = [str(x) for x in [atom.serial_number, data[res]]]
-                    line = ','.join(data_pt) + '\n'
+                    line = sep.join(data_pt) + '\n'
                     f.write(line)
 
+    def write_to_residue(self, data, output, sep=','):
+        """Write score for each residue in a structure to a file, based on a
+        dictionary mapping output score to residue number.
+        """
+        with open(output, 'w') as f:
+            for res in data:
+                data_pt = [str(x) for x in [res, data[res]]]
+                line = sep.join(data_pt) + '\n'
+                f.write(line)
 
 class Sequence(object):
     """A class to hold a protein sequence"""

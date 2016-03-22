@@ -4,11 +4,12 @@ for analysing a pdb file.
 from __future__ import absolute_import, division, print_function
 
 from Bio.SeqIO import PdbIO
+from Bio.SeqUtils import seq1, ProtParamData
+from Bio.Data.SCOPData import protein_letters_3to1
 from scipy.spatial import distance
 import numpy as np
-from structmap.seqtools import (prot_to_dna_position,
-                                _construct_sub_align)
-from structmap import gentests
+from .seqtools import _construct_sub_align, map_to_sequence
+from . import gentests
 
 def _euclidean_distance_matrix(chain, selector='all'):
     """Compute the Euclidean distance matrix for all atoms in a pdb chain.
@@ -34,8 +35,11 @@ def _euclidean_distance_matrix(chain, selector='all'):
             if selector in residue:
                 select_atom = selector
             #Revert to carbon alpha if atom is not found
-            else:
+            elif 'CA' in residue:
                 select_atom = 'CA'
+            #if CA is not found, do not include residue in distance matrix
+            else:
+                continue
             coords.append(residue[select_atom].get_coord())
             reference.append(residue[select_atom].get_full_id()[3][1])
     #Convert to a np array, and compute Euclidean distance.
@@ -56,6 +60,10 @@ def nearby(chain, radius=15, selector='all'):
     options include 'CA', 'CB' etc. If an atom is not found within a residue
     object, then method reverts to using 'CA'.
     """
+    #Small hack to allow method to return central atom alone if radius is set
+    #to zero.
+    if radius == 0:
+        radius = 0.01
     #Setup variables
     ref_dict = {}
     euclidean_distance, reference = _euclidean_distance_matrix(chain, selector)
@@ -80,17 +88,46 @@ def get_pdb_seq(filename):
     Will return multiple sequences if PDB file contains several chains.
     """
     #Open PDB file and get sequence data
-    with open(filename, 'r') as f:
-        seq = [s for s in PdbIO.PdbSeqresIterator(f)]
-        #A bit of manipulation to get Seq object into a dictionary
-        #Key is chain ID, and value is sequence as a string.
-        sequences = {s.id.split(":")[1]:''.join([x for x in s]) for s in seq}
+    try:
+        with open(filename, 'r') as f:
+            seq = [s for s in PdbIO.PdbSeqresIterator(f)]
+    except TypeError:
+        #If file-like object is passed instead (io.StringIO)
+        seq = [s for s in PdbIO.PdbSeqresIterator(filename)]
+    #A bit of manipulation to get Seq object into a dictionary
+    #Key is chain ID, and value is sequence as a string.
+    sequences = {s.id.split(":")[1]:''.join([x for x in s]) for s in seq}
     return sequences
+
+def match_pdb_residue_num_to_seq(chain, ref=None):
+    """Match PDB residue numbering (as given in PDB file) to
+    a reference sequence (can be pdb sequence) numbered by index.
+    Reference sequence is 1-indexed (and is indexed as such in output)
+    """
+    if ref is None:
+        ref = chain.sequence
+    seq_dict = {}
+    for residue in chain.chain.get_residues():
+        res_num = int(residue.id[1])
+        aminoacid = seq1(residue.resname, custom_map=protein_letters_3to1)
+        seq_dict[res_num] = aminoacid
+    pdb_sequence = [seq_dict[x] for x in sorted(seq_dict)]
+    pdb_numbering = [x for x in sorted(seq_dict)]
+    pdb_to_ref, _ref_to_pdb = map_to_sequence(pdb_sequence, ref)
+    output = {}
+    for i, pdb_num in enumerate(pdb_numbering):
+        if i+1 in pdb_to_ref:
+            output[pdb_to_ref[i+1]] = pdb_num
+    return output
 
 def map_function(chain, method, data, residues, ref=None):
     """Map a function onto PDB residues, return an output value"""
     output = method(chain, data, residues, ref)
     return output
+
+def map_function_for_pool(residues, chain, method, data, residue_map, ref=None):
+    """Map function with arguments rearranged for multiprocessin pool"""
+    return map_function(chain, method, data, residue_map[residues], ref=ref)
 
 def _count_residues(_chain, _data, residues, _ref):
     """Simple function to count the number of residues within a radius"""
@@ -102,6 +139,8 @@ def _tajimas_d(_chain, alignment, residues, ref):
     list of surrounding residues, and a dictionary giving mapping
     of PDB residue number to codon positions.
     """
+    #filter list of residues based on those that have mapped codons:
+    residues = [x for x in residues if x in ref]
     #Get list of codons that correspond to selected residues
     codons = [ref[res] for res in residues]
     #Get alignment bp from selected codons
@@ -118,3 +157,44 @@ def _default_mapping(_chain, data, residues, ref):
     data_points = [data[res] for res in reference_residues]
     average = np.mean(data_points)
     return average
+
+def _snp_mapping(_chain, data, residues, ref):
+    """"Calculate the number of SNPs over selected residues.
+    Data is a list of residues that contain SNPs.
+    """
+    #Convert PDB residue numbering to reference numbering
+    reference_residues = [ref[res] for res in residues]
+    #Find the intersection between the residues which contain SNPs and
+    #the selected residues on the Structure
+    snp_xor_res = set(data) & set(reference_residues)
+    num_snps = len(snp_xor_res)
+    prop_snps = num_snps / len(reference_residues)
+    #currently returns the proportion of SNPs within a radius. could
+    #change to be the raw number of SNPs.
+    return prop_snps
+
+def _map_amino_acid_scale(chain, data, residues, _ref):
+    #Get a list of all amino acids within window, converted to one letter code
+    aminoacids = [seq1(chain[int(res)].resname, custom_map=protein_letters_3to1)
+                  for res in residues]
+    scales = {'kd': ProtParamData.kd, # Kyte & Doolittle index of hydrophobicity
+              # Flexibility
+              # Normalized flexibility parameters (B-values),
+              # average (Vihinen et al., 1994)
+              'Flex': ProtParamData.Flex,
+              # Hydrophilicity
+              # Hopp & Wood
+              # Proc. Natl. Acad. Sci. U.S.A. 78:3824-3828(1981).
+              'hw': ProtParamData.hw,
+              # Surface accessibility
+              # 1 Emini Surface fractional probability
+              'em': ProtParamData.em,
+              # 2 Janin Interior to surface transfer energy scale
+              'ja': ProtParamData.ja}
+    if data in scales:
+        scale = scales[data]
+    else:
+        scale = data
+    #Compute mean of scale over all residues within window
+    result = np.mean([scale[aa] for aa in aminoacids])
+    return result

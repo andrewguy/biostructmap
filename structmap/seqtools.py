@@ -180,18 +180,29 @@ def align_protein_to_dna(prot_seq, dna_seq):
     Output from align_protein_to_dna is a dictionary mapping protein residue
     numbers to codon positions: {3:(6,7,8), 4:(9,10,11), ...}
     """
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as protein_seq_file, tempfile.NamedTemporaryFile(mode='w', delete=False) as dna_seq_file:
+    with tempfile.NamedTemporaryFile(mode='w') as protein_seq_file, \
+         tempfile.NamedTemporaryFile(mode='w') as dna_seq_file:
         protein_seq_file.write(">\n" + prot_seq + "\n")
         dna_seq_file.write(">\n" + dna_seq + "\n")
         dna_seq_file.flush()
         protein_seq_file.flush()
-        alignment = subprocess.check_output(["exonerate",
-                                             "--model", "protein2genome",
-                                             "--showalignment", "False",
-                                             "--showvulgar", "True",
-                                             protein_seq_file.name,
-                                             dna_seq_file.name])
-    vulgar_format = re.search(r"(?<=vulgar:).*(?=\n)", alignment.decode("utf-8")).group(0)
+        #If protein sequence length is small, then exonerate score needs
+        #to be adjusted in order to return alignment.
+        #With a length n, a perfect match would score 5n.
+        #Hence we make a threshold of 3n (60%).
+        exonerate_call = ["exonerate",
+                          "--model", "protein2genome",
+                          "--showalignment", "False",
+                          "--showvulgar", "True",
+                          protein_seq_file.name,
+                          dna_seq_file.name]
+        if len(prot_seq) < 25:
+            threshold = str(len(prot_seq) * 3)
+            exonerate_call.append("--score")
+            exonerate_call.append(threshold)
+        alignment = subprocess.check_output(exonerate_call)
+    vulgar_format = re.search(r"(?<=vulgar:).*(?=\n)",
+                              alignment.decode("utf-8")).group(0)
     protein_start = vulgar_format.split()[0]
     dna_start = vulgar_format.split()[3]
     matches = vulgar_format.split()[7:]
@@ -209,7 +220,8 @@ def align_protein_to_dna(prot_seq, dna_seq):
 
 
     if len(matches) % 3:
-        raise UserWarning("The vulgar output from exonerate has failed to parse correctly")
+        raise UserWarning("The vulgar output from exonerate has failed \
+                           to parse correctly")
     #Split output into [modifier, query_count, ref_count] triples
     matches = [matches[i*3:i*3+3] for i in range(len(matches)//3)]
     matched_bases = {}
@@ -224,8 +236,8 @@ def align_protein_to_dna(prot_seq, dna_seq):
         if modifier == 'M':
             if count1 != count2 / 3:
                 raise UserWarning("Match in vulgar output is possibly " +
-                                 "incorrect - number of protein residues " +
-                                 "should be the number of bases divided by 3")
+                                  "incorrect - number of protein residues " +
+                                  "should be the number of bases divided by 3")
             for i in range(count2):
                 dna_count = step(dna_count, 1)
                 codon.append(dna_count)
@@ -236,8 +248,8 @@ def align_protein_to_dna(prot_seq, dna_seq):
         if modifier == 'C':
             if count1 != count2 / 3:
                 raise UserWarning("Codon in vulgar output is possibly " +
-                                 "incorrect - number of protein residues " +
-                                 "should be the number of bases divided by 3")
+                                  "incorrect - number of protein residues " +
+                                  "should be the number of bases divided by 3")
             raise UserWarning("Unexpected output in vulgar format - not " +
                               "expected to need functionality for 'codon' " +
                               "modifier")
@@ -263,7 +275,7 @@ def align_protein_to_dna(prot_seq, dna_seq):
                 codon.append(dna_count)
                 if len(codon) == 3:
                     protein_count += 1
-                    matched_bases.append([protein_count, tuple(codon)])
+                    matched_bases[protein_count] = tuple(codon)
                     codon = []
         if modifier == 'F':
             raise UserWarning("Unexpected frameshift in exonerate output - " +

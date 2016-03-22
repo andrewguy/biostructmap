@@ -4,6 +4,7 @@ from unittest import TestCase
 from copy import copy
 import numpy as np
 import pickle
+import io
 
 from structmap import utils, structmap, seqtools, gentests, pdbtools
 import Bio.PDB
@@ -328,10 +329,11 @@ class TestGentests(TestCase):
                     (109.5, -1.434138485438007),
                     (121.5, -1.2371599802089934)]
         taj_d_window = gentests.tajimas_d(self.alignment, 50, 12)
+        taj_d_window = [(x, taj_d_window[x]) for x in sorted(taj_d_window)]
         self.assertEqual(taj_d_window,to_match)
         #Test that method returns 'None' when Tajimas D can't be calculated.
         taj_d_small_window = gentests.tajimas_d(self.alignment, 12, 3)
-        self.assertEqual(taj_d_small_window[0], (6.5, None))
+        self.assertEqual(taj_d_small_window[6.5], None)
 
     def test_tajimas_d_with_divide_by_zero_error(self):
         taj_d = gentests._tajimas_d(self.small_alignment)
@@ -353,6 +355,19 @@ class TestStructmap(TestCase):
 
     def test_structure_object_instantiation(self):
         structure = structmap.Structure(self.test_file)
+        for model in structure:
+            #Test iteration
+            self.assertTrue(isinstance(model, structmap.Model))
+            #test _getitem__ method work to return a model object
+            self.assertTrue(isinstance(structure[model.get_id()], structmap.Model))
+        self.assertTrue(isinstance(structure.structure, Bio.PDB.Structure.Structure))
+        self.assertTrue(isinstance(structure.structure[0]['A'], Bio.PDB.Chain.Chain))
+        self.assertTrue(isinstance(structure.sequences, dict))
+
+    def test_structure_object_instantiation_with_file_like_object(self):
+        with open(self.test_file, 'r') as f:
+            test_filelike = io.StringIO(f.read())
+        structure = structmap.Structure(test_filelike)
         for model in structure:
             #Test iteration
             self.assertTrue(isinstance(model, structmap.Model))
@@ -414,20 +429,20 @@ class TestStructmap(TestCase):
         chain = structmap.Structure(self.test_file)[0]['A']
         result = chain.rel_solvent_access()
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            self.assertTrue(isinstance(result[(chain.get_id(), residue.get_id())], float))
+            self.assertTrue(isinstance(result[residue.get_id()[1]], float))
 
     def test_default_mapping_procedure(self):
         chain = structmap.Structure(self.test_file)[0]['A']
-        mapping = chain.map([x for x in range(0,26)])
+        mapping = chain.map([x for x in range(0,25)])
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
             result = mapping[residue.get_id()[1]]
             self.assertTrue(isinstance(result, float))
-        mapping = chain.map([x for x in range(0,26)], method='default', ref=None, radius=.1, selector='all')
+        mapping = chain.map([x for x in range(0,25)], method='default', ref=None, radius=.1, selector='all')
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
             result = mapping[residue.get_id()[1]]
             self.assertEqual(result, residue.get_id()[1])
         #Test if data is in a dictionary
-        mapping = chain.map({x:x for x in range(0,26)})
+        mapping = chain.map({x:x for x in range(0,25)})
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
             result = mapping[residue.get_id()[1]]
             self.assertTrue(isinstance(result, float))

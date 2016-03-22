@@ -3,26 +3,36 @@ Does things such as mapping of Tajima's D to a protein structure.
 This doc-string needs updating."""
 from __future__ import absolute_import, division, print_function
 
+from copy import copy, deepcopy
+from functools import partial
+from multiprocessing import Pool
+import tempfile
 import Bio.PDB
 from Bio.PDB import DSSP
 from Bio import SeqIO, AlignIO
-from structmap import utils, pdbtools, gentests
-from structmap.pdbtools import _tajimas_d, _default_mapping
-from structmap.seqtools import map_to_sequence, align_protein_to_dna
+from . import utils, pdbtools, gentests
+from .exceptions import MissingArgument
+from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
+                       _map_amino_acid_scale,
+                       match_pdb_residue_num_to_seq,
+                       map_function_for_pool)
+from .seqtools import (map_to_sequence, align_protein_to_dna,
+                       _construct_sub_align)
 
 
 class Structure(object):
     """A class to hold a PDB structure object."""
-    def __init__(self, pdbfile):
+    def __init__(self, pdbfile, pdbname='pdb_file'):
         #create pdb parser, get structure.
         parser = Bio.PDB.PDBParser()
-        pdbname = pdbfile
         #Get Bio.PDB structure
-        self.structure = parser.get_structure(pdbname, pdbfile)
+        self.structure = parser.get_structure(pdbname, copy(pdbfile))
         #Get PDB sequences
-        self.sequences = pdbtools.get_pdb_seq(pdbfile)
-        self.models = {model.get_id():Model(self, model, pdbfile) for
+        self.sequences = pdbtools.get_pdb_seq(copy(pdbfile))
+        self.models = {model.get_id():Model(self, model, copy(pdbfile)) for
                        model in self.structure}
+        self._pdbfile = pdbfile
+        self.pdbname = pdbname
 
     def __iter__(self):
         for key in sorted(self.models):
@@ -30,6 +40,13 @@ class Structure(object):
 
     def __getitem__(self, key):
         return self.models[key]
+
+    def get_pdb_file(self):
+        """
+        Returns a copy of the pdb file object (can be a stringIO object
+        or the name of the pdbfile.)
+        """
+        return copy(self._pdbfile)
 
     def map(self, data, method='default', ref=None, radius=15, selector='all'):
         """Function which performs a mapping of some parameter or function to
@@ -79,8 +96,21 @@ class Chain(object):
         self._id = chain.get_id()
         self.chain = chain
         self._parent = model
-        self.dssp = DSSP(model.model, pdbfile)
+        self.allow_deepcopy = False
+        if isinstance(pdbfile, str):
+            self.dssp = DSSP(model.model, pdbfile)
+        else:
+            with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
+                temp_pdb_file.write(copy(pdbfile).read())
+                temp_pdb_file.flush()
+                self.dssp = DSSP(model.model, temp_pdb_file.name)
         self.sequence = model.parent().sequences[self.get_id()]
+        self._nearby = {}
+        #try:
+        #    deepcopy(chain)
+        #except RecursionError:
+        #    print("Warning: Not using multiprocessing for {pdb} due to recursion error.".format(pdb=self._parent._parent.pdbname))
+        #    self.allow_deepcopy = False
 
     def __iter__(self):
         for residue in self.chain:
@@ -106,8 +136,12 @@ class Chain(object):
         Other potential options include 'CA', 'CB' etc. If an atom is not found
         within a residue object, then method reverts to using 'CA'.
         """
-        dist_map = pdbtools.nearby(self.chain, radius, atom)
-        return dist_map
+        param_key = (radius, atom)
+        #Calculate distance matrix and store it for retrieval in future queries.
+        if param_key not in self._nearby:
+            dist_map = pdbtools.nearby(self.chain, radius, atom)
+            self._nearby[param_key] = dist_map
+        return self._nearby[param_key]
 
     def rel_solvent_access(self):
         """Use Bio.PDB to calculate relative solvent accessibility.
@@ -117,7 +151,7 @@ class Chain(object):
         for residue in self.chain:
             key = (self.get_id(), residue.get_id())
             if key in self.dssp:
-                rsa[key] = self.dssp[key][3]
+                rsa[key[1][1]] = self.dssp[key][3]
         return rsa
 
     def map(self, data, method='default', ref=None, radius=15, selector='all'):
@@ -126,23 +160,80 @@ class Chain(object):
         The residues within a radius of a central residue are passed to the
         function, which computes an output value for the central residue.
         This is performed for each residue in the structure.
+        For tajimasd, reference sequence is a genomic sequence.
         """
+        #Note: This method attempts to deal with 3 different ways of identifying
+        #residue position: i) Within a PDB file, residues are labelled with a
+        #number, which should increment according to position in sequence, but
+        #is not necessarily gapless, and may include negative numbering in
+        #order to preserve alignment with similar sequences. ii) Residue
+        #numbering according to the position of the residue within the
+        #protein sequence extracted from the PDB file. That is, the first
+        #residue in the sequence is numbering '1', and incrementing from there.
+        #iii) Residue numbering according to a reference sequence provided, or
+        #according to a dna sequence (which could include introns).
+
         methods = {"default":_default_mapping,
-                   "tajimasd":_tajimas_d}
+                   "tajimasd":_tajimas_d,
+                   "snps": _snp_mapping,
+                   "aa_scale": _map_amino_acid_scale}
+        #Create a map of pdb sequence index (1-indexed) to pdb residue
+        #numbering from file
+        seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
+        #Generate a map of nearby residues for each residue in pdb file. numbering
+        #is according to pdb residue numbering from file
         residue_map = pdbtools.nearby(self.chain, radius=radius, selector=selector)
         results = {}
-        if ref is None:
+        if ref is None and method != 'tajimasd':
             ref = self.sequence
+        elif ref is None and method == 'tajimasd':
+            ref = data[0]
+        #Generate mapping of pdb sequence index to dna sequence
         if method == 'tajimasd':
-            pdb_to_ref = align_protein_to_dna(ref, ''.join([x for x in data[0]]))
+            pdbindex_to_ref = align_protein_to_dna(self.sequence,
+                                                   ''.join([x for x in ref]))
+        #Generate mapping of pdb sequence index to reference sequence (also indexed by position)
         else:
-            pdb_to_ref, _ = map_to_sequence(self.sequence, ref)
+            pdbindex_to_ref, _ = map_to_sequence(self.sequence, ref)
         if method in methods:
             method = methods[method]
-        for residue in residue_map:
-            results[residue] = pdbtools.map_function(self, method, data,
-                                                     residue_map[residue],
-                                                     ref=pdb_to_ref)
+        #Finally, map pdb numbering by file to the reference sequence
+        #(dna or protein) provided, as long as the residues exists within the PDB
+        #structure (ie has coordinates)
+        pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x in
+                         pdbindex_to_ref if x in seq_index_to_pdb_numb}
+        try:
+            if not self.allow_deepcopy:
+                raise RecursionError
+            #ENABLE MULTIPROCESSING USING POOL MODULE
+            #Bit of wangling to eliminate a deepcopy error in Bio.PDB structures
+            #Requires that we build the Bio.PDB structure from scratch within
+            #each subprocess.
+            residues = sorted(residue_map)
+            partial_func = partial(map_function_for_pool, residue_map=residue_map,
+                                   chain=self, method=method, data=data, ref=pdbnum_to_ref)
+            with Pool(4) as p:
+                pool_results = p.map(partial_func, residues)
+            results = dict(zip(residues, pool_results))
+            #END MULTIPROCESSING
+        except AttributeError:
+            print("Warning: Not using multiprocessing. Try defining your custom " +
+                  "method in the top level of your module.")
+            results = {}
+            #For each residue within the sequence, apply a function and return result.
+            for residue in residue_map:
+                results[residue] = pdbtools.map_function(self, method, data,
+                                                         residue_map[residue],
+                                                         ref=pdbnum_to_ref)
+        except RecursionError:
+            self.allow_deepcopy = False
+            results = {}
+            #For each residue within the sequence, apply a function and return result.
+            for residue in residue_map:
+                results[residue] = pdbtools.map_function(self, method, data,
+                                                         residue_map[residue],
+                                                         ref=pdbnum_to_ref)
+
         return results
 
     def write_to_atom(self, data, output, sep=','):
@@ -160,15 +251,35 @@ class Chain(object):
                     line = sep.join(data_pt) + '\n'
                     f.write(line)
 
-    def write_to_residue(self, data, output, sep=','):
+
+    def write_to_residue(self, data, output, sep=',', ref=None):
         """Write score for each residue in a structure to a file, based on a
         dictionary mapping output score to residue number.
         """
-        with open(output, 'w') as f:
-            for res in data:
-                data_pt = [str(x) for x in [res, data[res]]]
-                line = sep.join(data_pt) + '\n'
-                f.write(line)
+        if ref is None:
+            with open(output, 'w') as f:
+                for res in data:
+                    data_pt = [str(x) for x in [res, data[res]]]
+                    line = sep.join(data_pt) + '\n'
+                    f.write(line)
+        else:
+            seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
+            pdbindex_to_ref, _ = map_to_sequence(self.sequence, ref)
+            pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x
+                             in pdbindex_to_ref if x in seq_index_to_pdb_numb}
+            with open(output, 'w') as f:
+                for res in data:
+                    if res not in pdbnum_to_ref:
+                        output = '''Residue {res} in PDB file {pdb} was not \
+                                    matched to reference sequence provided \
+                                    for writing to output file'''.format(
+                                        res=res, pdb=self.parent().parent().pdbname)
+
+                        print(output)
+                        continue
+                    data_pt = [str(x) for x in [pdbnum_to_ref[res], data[res]]]
+                    line = sep.join(data_pt) + '\n'
+                    f.write(line)
 
 class Sequence(object):
     """A class to hold a protein sequence"""
@@ -203,7 +314,8 @@ class SequenceAlignment(object):
         translation = self.alignment[index, 0:length-overhang].seq.translate(to_stop=True)
         return translation
 
-    def tajimas_d(self, window=None, step=3):
+    def tajimas_d(self, window=None, step=3, protein_ref=None, genome_ref=None,
+                  output_protein_num=False):
         """Calculate Tajima's D on a SequenceAlignment object.
 
         If no window parameter is passed to the function, then the function
@@ -211,7 +323,7 @@ class SequenceAlignment(object):
         returns a single numerical result.
 
         If a window size is given, then the function returns a dictionary
-        of Tajima's D values
+        of Tajima's D values over a sliding window.
 
         :param window: The size of the sliding window over which Tajima's D is
         calculated
@@ -221,9 +333,47 @@ class SequenceAlignment(object):
         :returns: *key: window midpoint
                   *value: Tajima's D value for window
         """
+        # If given a protein reference sequence, align genome to reference
+        # sequence, and only perform a Tajima's D analysis over the protein
+        # coding region. Otherwise perform a Tajima's D test over the full
+        # genomic sequence.
+        if genome_ref is not None and protein_ref is not None:
+            #Align genome to reference
+            prot_to_genome = align_protein_to_dna(protein_ref, ''.join([x for x in genome_ref]))
+            #Get sorted list of codons
+            codons = [prot_to_genome[x] for x in sorted(prot_to_genome)]
+            #Construct a sub-alignment
+            alignment = _construct_sub_align(self.alignment, codons)
+        elif genome_ref is None and protein_ref is None:
+            alignment = self.alignment
+        elif protein_ref is None:
+            raise MissingArgument("Missing protein_ref assignment")
+        elif genome_ref is None:
+            raise MissingArgument("Missing genome_ref assignment")
+
+        #Perform Tajima's D calculation
         try:
-            return gentests.tajimas_d(self.alignment, window, step)
+            tajd = gentests.tajimas_d(alignment, window, step)
         except TypeError:
             print("Error calculating Tajima's D. Please check inputs to " +
                   "Tajima's D function.")
-            raise TypeError
+            raise
+        if window is not None and protein_ref is not None:
+            #Unpack list of codons
+            codon_list = [x for sublist in codons for x in sublist]
+            #Reference to genome numbering
+            tajd_ref_to_genome = {codon_list[int(x) - 1]: tajd[x] for x in tajd}
+            #Dictionary comprehension to reverse and unpack map of protein
+            #position to genome codons. Initial dictionary is in the form
+            # {1:(1,2,3), 2:(4,5,6,),...}, hence the need for the multiple
+            #layers within the dictionary comprehension (needed to unpack each
+            #codon tuple).
+            genome_to_prot = {i:x for x in prot_to_genome for i in prot_to_genome[x]}
+            tajd_ref_to_protein = [(genome_to_prot[x], tajd_ref_to_genome[x])
+                                   for x in tajd_ref_to_genome]
+            if output_protein_num:
+                return tajd_ref_to_genome, tajd_ref_to_protein
+            else:
+                return tajd_ref_to_genome
+        else:
+            return tajd

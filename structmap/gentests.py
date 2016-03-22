@@ -16,7 +16,7 @@ def tajimas_d(alignment, window=None, step=3):
     Output is Tajima's D value.
     """
     if window:
-        results = []
+        results = {}
         prev_win = None
         prev_d = None
         slide = _sliding_window_var_sites(alignment, window, step=step,
@@ -24,10 +24,10 @@ def tajimas_d(alignment, window=None, step=3):
         for i, win in enumerate(slide):
             centre = i*step + 1 + (window-1)/2
             if win == prev_win:
-                results.append((centre, prev_d))
+                results[centre] = prev_d
             else:
                 current_d = _tajimas_d(win)
-                results.append((centre, current_d))
+                results[centre] = current_d
                 prev_d = current_d
                 prev_win = win
         return results

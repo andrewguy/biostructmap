@@ -8,7 +8,7 @@ from Bio.SeqUtils import seq1, ProtParamData
 from Bio.Data.SCOPData import protein_letters_3to1
 from scipy.spatial import distance
 import numpy as np
-from .seqtools import _construct_sub_align, map_to_sequence
+from .seqtools import _construct_sub_align, blast_sequences
 from . import gentests
 
 def _euclidean_distance_matrix(chain, selector='all'):
@@ -113,7 +113,7 @@ def match_pdb_residue_num_to_seq(chain, ref=None):
         seq_dict[res_num] = aminoacid
     pdb_sequence = [seq_dict[x] for x in sorted(seq_dict)]
     pdb_numbering = [x for x in sorted(seq_dict)]
-    pdb_to_ref, _ref_to_pdb = map_to_sequence(pdb_sequence, ref)
+    pdb_to_ref, _ref_to_pdb = blast_sequences(pdb_sequence, ref)
     output = {}
     for i, pdb_num in enumerate(pdb_numbering):
         if i+1 in pdb_to_ref:

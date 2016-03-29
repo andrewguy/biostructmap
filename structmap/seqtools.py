@@ -7,9 +7,12 @@ import subprocess
 import tempfile
 import re
 import operator
+from io import StringIO
 
-from Bio import AlignIO, pairwise2 as pw2
+from Bio import AlignIO
 from Bio.SubsMat import MatrixInfo
+from Bio.Blast.Applications import NcbiblastpCommandline
+from Bio.Blast import NCBIXML
 
 def _sliding_window(seq_align, window, step=3, isfile=True, fasta_out=False):
     """
@@ -96,42 +99,57 @@ def _join_alignments(align_dict):
             output = output + align_dict[key]
     return output
 
-def map_to_sequence(compseq, refseq):
-    """
-    Takes a protein refence sequence and corresponding PDB file sequence as
-    input, and maps the residue numbering of the PDB chain to the reference
-    sequence, using the Bio.pairwise2 package for alignment.
+
+def blast_sequences(comp_seq, ref_seq):
+    '''
+    Perform BLAST of two protein sequences using NCBI BLAST+ package.
     Output is two dictionaries: residue numbering in PDB chain (key) mapped to
     the residue position in the reference sequence (value), and vice versa.
-    """
-    matrix = MatrixInfo.blosum62
-    gap_open = -10
-    gap_extend = -0.5
+    '''
+    if not isinstance(comp_seq, str):
+        comp_seq = ''.join([x for x in comp_seq])
+    if not isinstance(ref_seq, str):
+        ref_seq = ''.join([x for x in ref_seq])
 
-    if not isinstance(compseq, str):
-        compseq = ''.join([x for x in compseq])
-    if not isinstance(refseq, str):
-        refseq = ''.join([x for x in refseq])
-
-    alns = pw2.align.globalds(compseq, refseq, matrix, gap_open, gap_extend)
-    aln_key, aln_ref, _, _, _ = alns[0]
+    with tempfile.NamedTemporaryFile(mode='w') as comp_seq_file, \
+         tempfile.NamedTemporaryFile(mode='w') as ref_seq_file:
+        comp_seq_file.write(">\n" + comp_seq + "\n")
+        ref_seq_file.write(">\n" + ref_seq + "\n")
+        ref_seq_file.flush()
+        comp_seq_file.flush()
+        blastp_cline = NcbiblastpCommandline(query=comp_seq_file.name,
+                                             subject=ref_seq_file.name,
+                                             evalue=0.001, outfmt=5)
+        alignment, _stderror = blastp_cline()
+    blast_xml = StringIO(alignment)
+    blast_record = NCBIXML.read(blast_xml)
+    temp_score = 0
+    high_scoring_hsp = None
+    #Retrieve highest scoring HSP
+    for alignment in blast_record.alignments:
+        for hsp in alignment.hsps:
+            if hsp.score > temp_score:
+                temp_score = hsp.score
+                high_scoring_hsp = hsp
+    query_string = high_scoring_hsp.query
+    sbjct_string = high_scoring_hsp.sbjct
     #Create dictionary mapping position in PDB chain to position in ref sequence
     pdb_to_ref = {}
     ref_to_pdb = {}
-    key = 0
-    ref = 0
-    for i, res in enumerate(aln_key):
-        if res.isalpha() and aln_ref[i].isalpha():
-            key += 1
-            ref += 1
+    key = high_scoring_hsp.query_start
+    ref = high_scoring_hsp.sbjct_start
+    for i, res in enumerate(query_string):
+        if res.isalpha() and sbjct_string[i].isalpha():
             pdb_to_ref[key] = ref
             ref_to_pdb[ref] = key
+            key += 1
+            ref += 1
         elif res.isalpha():
             key += 1
-        elif aln_ref[i].isalpha():
+        elif sbjct_string[i].isalpha():
             ref += 1
-
     return pdb_to_ref, ref_to_pdb
+
 
 def _construct_sub_align(alignments, codons):
     """

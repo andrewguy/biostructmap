@@ -16,7 +16,7 @@ from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
                        _map_amino_acid_scale,
                        match_pdb_residue_num_to_seq,
                        map_function_for_pool)
-from .seqtools import (map_to_sequence, align_protein_to_dna,
+from .seqtools import (blast_sequences, align_protein_to_dna,
                        _construct_sub_align)
 
 
@@ -194,7 +194,7 @@ class Chain(object):
                                                    ''.join([x for x in ref]))
         #Generate mapping of pdb sequence index to reference sequence (also indexed by position)
         else:
-            pdbindex_to_ref, _ = map_to_sequence(self.sequence, ref)
+            pdbindex_to_ref, _ = blast_sequences(self.sequence, ref)
         if method in methods:
             method = methods[method]
         #Finally, map pdb numbering by file to the reference sequence
@@ -264,7 +264,7 @@ class Chain(object):
                     f.write(line)
         else:
             seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
-            pdbindex_to_ref, _ = map_to_sequence(self.sequence, ref)
+            pdbindex_to_ref, _ = blast_sequences(self.sequence, ref)
             pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x
                              in pdbindex_to_ref if x in seq_index_to_pdb_numb}
             with open(output, 'w') as f:

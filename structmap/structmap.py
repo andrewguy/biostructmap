@@ -98,12 +98,18 @@ class Chain(object):
         self._parent = model
         self.allow_deepcopy = False
         if isinstance(pdbfile, str):
-            self.dssp = DSSP(model.model, pdbfile)
+            try:
+                self.dssp = DSSP(model.model, pdbfile)
+            except FileNotFoundError:
+                self.dssp = DSSP(model.model, pdbfile, dssp="mkdssp")
         else:
             with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
                 temp_pdb_file.write(copy(pdbfile).read())
                 temp_pdb_file.flush()
-                self.dssp = DSSP(model.model, temp_pdb_file.name)
+                try:
+                    self.dssp = DSSP(model.model, temp_pdb_file.name)
+                except FileNotFoundError:
+                    self.dssp = DSSP(model.model, temp_pdb_file.name, dssp="mkdssp")
         self.sequence = model.parent().sequences[self.get_id()]
         self._nearby = {}
         #try:

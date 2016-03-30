@@ -270,9 +270,9 @@ class Chain(object):
             with open(output, 'w') as f:
                 for res in data:
                     if res not in pdbnum_to_ref:
-                        output = '''Residue {res} in PDB file {pdb} was not \
-                                    matched to reference sequence provided \
-                                    for writing to output file'''.format(
+                        output = ("Residue {res} in PDB file {pdb} was not"
+                                 " matched to reference sequence provided"
+                                 " for writing to output file").format(
                                         res=res, pdb=self.parent().parent().pdbname)
 
                         print(output)

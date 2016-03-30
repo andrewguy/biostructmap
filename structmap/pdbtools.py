@@ -152,6 +152,8 @@ def _tajimas_d(_chain, alignment, residues, ref):
 def _default_mapping(_chain, data, residues, ref):
     """"Calculate an average of all data points over selected residues.
     """
+    #filter list of residues based on those that are mapped to reference seq
+    residues = [x for x in residues if x in ref]
     #Convert PDB residue numbering to reference numbering
     reference_residues = [ref[res] for res in residues]
     data_points = [data[res] for res in reference_residues]
@@ -162,13 +164,19 @@ def _snp_mapping(_chain, data, residues, ref):
     """"Calculate the number of SNPs over selected residues.
     Data is a list of residues that contain SNPs.
     """
+    #filter list of residues based on those that are mapped to reference seq
+    residues = [x for x in residues if x in ref]
     #Convert PDB residue numbering to reference numbering
     reference_residues = [ref[res] for res in residues]
     #Find the intersection between the residues which contain SNPs and
     #the selected residues on the Structure
     snp_xor_res = set(data) & set(reference_residues)
     num_snps = len(snp_xor_res)
-    prop_snps = num_snps / len(reference_residues)
+    try:
+        prop_snps = num_snps / len(reference_residues)
+    #If no residues are mapped onto the reference sequence, return None.
+    except ZeroDivisionError:
+        return None
     #currently returns the proportion of SNPs within a radius. could
     #change to be the raw number of SNPs.
     return prop_snps

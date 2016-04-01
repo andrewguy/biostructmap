@@ -100,7 +100,7 @@ class Chain(object):
         if isinstance(pdbfile, str):
             try:
                 self.dssp = DSSP(model.model, pdbfile)
-            except FileNotFoundError:
+            except OSError:
                 self.dssp = DSSP(model.model, pdbfile, dssp="mkdssp")
         else:
             with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
@@ -108,9 +108,15 @@ class Chain(object):
                 temp_pdb_file.flush()
                 try:
                     self.dssp = DSSP(model.model, temp_pdb_file.name)
-                except FileNotFoundError:
+                except OSError:
                     self.dssp = DSSP(model.model, temp_pdb_file.name, dssp="mkdssp")
-        self.sequence = model.parent().sequences[self.get_id()]
+        #Some PDB files do not contain sequences in the header, and
+        #hence we need to parse the atom records for each chain
+        try:
+            self.sequence = model.parent().sequences[self.get_id()]
+        except KeyError:
+            self.sequence = pdbtools.get_pdb_seq_from_atom(chain)
+            self._parent.parent().sequences[self.get_id()] = self.sequence
         self._nearby = {}
         #try:
         #    deepcopy(chain)

@@ -99,6 +99,20 @@ def get_pdb_seq(filename):
     sequences = {s.id.split(":")[1]:''.join([x for x in s]) for s in seq}
     return sequences
 
+def get_pdb_seq_from_atom(chain):
+    """
+    Get a protein sequence from chain atoms in a PDB file.
+    Input is a Bio.PDB chain object.
+    Output is a protein sequence string.
+    """
+    seq_dict = {}
+    for residue in chain.get_residues():
+        res_num = int(residue.id[1])
+        aminoacid = seq1(residue.resname, custom_map=protein_letters_3to1)
+        seq_dict[res_num] = aminoacid
+    pdb_sequence = [seq_dict[x] for x in sorted(seq_dict)]
+    return ''.join([x for x in pdb_sequence])
+
 def match_pdb_residue_num_to_seq(chain, ref=None):
     """Match PDB residue numbering (as given in PDB file) to
     a reference sequence (can be pdb sequence) numbered by index.

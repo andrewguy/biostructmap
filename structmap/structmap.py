@@ -11,7 +11,6 @@ import Bio.PDB
 from Bio.PDB import DSSP
 from Bio import SeqIO, AlignIO
 from . import utils, pdbtools, gentests
-from .exceptions import MissingArgument
 from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
                        _map_amino_acid_scale,
                        match_pdb_residue_num_to_seq,
@@ -359,9 +358,9 @@ class SequenceAlignment(object):
         elif genome_ref is None and protein_ref is None:
             alignment = self.alignment
         elif protein_ref is None:
-            raise MissingArgument("Missing protein_ref assignment")
+            raise TypeError("Missing protein_ref assignment")
         elif genome_ref is None:
-            raise MissingArgument("Missing genome_ref assignment")
+            raise TypeError("Missing genome_ref assignment")
 
         #Perform Tajima's D calculation
         try:

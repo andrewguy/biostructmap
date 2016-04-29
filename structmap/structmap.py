@@ -3,7 +3,7 @@ Does things such as mapping of Tajima's D to a protein structure.
 This doc-string needs updating."""
 from __future__ import absolute_import, division, print_function
 
-from copy import copy, deepcopy
+from copy import copy
 from functools import partial
 from multiprocessing import Pool
 import tempfile
@@ -95,7 +95,6 @@ class Chain(object):
         self._id = chain.get_id()
         self.chain = chain
         self._parent = model
-        self.allow_deepcopy = False
         if isinstance(pdbfile, str):
             try:
                 self.dssp = DSSP(model.model, pdbfile)
@@ -117,11 +116,6 @@ class Chain(object):
             self.sequence = pdbtools.get_pdb_seq_from_atom(chain)
             self._parent.parent().sequences[self.get_id()] = self.sequence
         self._nearby = {}
-        #try:
-        #    deepcopy(chain)
-        #except RecursionError:
-        #    print("Warning: Not using multiprocessing for {pdb} due to recursion error.".format(pdb=self._parent._parent.pdbname))
-        #    self.allow_deepcopy = False
 
     def __iter__(self):
         for residue in self.chain:
@@ -213,38 +207,13 @@ class Chain(object):
         #structure (ie has coordinates)
         pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x in
                          pdbindex_to_ref if x in seq_index_to_pdb_numb}
-        try:
-            if not self.allow_deepcopy:
-                raise RecursionError
-            #ENABLE MULTIPROCESSING USING POOL MODULE
-            #Bit of wangling to eliminate a deepcopy error in Bio.PDB structures
-            #Requires that we build the Bio.PDB structure from scratch within
-            #each subprocess.
-            residues = sorted(residue_map)
-            partial_func = partial(map_function_for_pool, residue_map=residue_map,
-                                   chain=self, method=method, data=data, ref=pdbnum_to_ref)
-            with Pool(4) as p:
-                pool_results = p.map(partial_func, residues)
-            results = dict(zip(residues, pool_results))
-            #END MULTIPROCESSING
-        except AttributeError:
-            print("Warning: Not using multiprocessing. Try defining your custom " +
-                  "method in the top level of your module.")
-            results = {}
-            #For each residue within the sequence, apply a function and return result.
-            for residue in residue_map:
-                results[residue] = pdbtools.map_function(self, method, data,
-                                                         residue_map[residue],
-                                                         ref=pdbnum_to_ref)
-        except RecursionError:
-            self.allow_deepcopy = False
-            results = {}
-            #For each residue within the sequence, apply a function and return result.
-            for residue in residue_map:
-                results[residue] = pdbtools.map_function(self, method, data,
-                                                         residue_map[residue],
-                                                         ref=pdbnum_to_ref)
 
+        results = {}
+        #For each residue within the sequence, apply a function and return result.
+        for residue in residue_map:
+            results[residue] = pdbtools.map_function(self, method, data,
+                                                     residue_map[residue],
+                                                     ref=pdbnum_to_ref)
         return results
 
     def write_to_atom(self, data, output, sep=','):

@@ -33,7 +33,7 @@ def tajimas_d(alignment, window=None, step=3):
         return results
     else:
         #Generate alignment containing only polymorphic sites
-        alignment = _join_alignments(_var_site(alignment))
+        #alignment = _join_alignments(_var_site(alignment))
         return _tajimas_d(alignment)
 
 def _tajimas_d(alignment):

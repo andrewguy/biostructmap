@@ -469,3 +469,8 @@ class TestStructmap(TestCase):
             test_align.tajimas_d(3.5,5)
         with self.assertRaises(TypeError):
             test_align.tajimas_d(3,5.5)
+
+    def test_tajimas_d_on_long_sequence(self):
+        test_align = structmap.SequenceAlignment('./tests/msa/MSA_test_long.fsa')
+        taj_d = test_align.tajimas_d()
+        self.assertEqual(taj_d, 0.33458440732186856)

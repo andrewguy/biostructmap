@@ -1,6 +1,6 @@
 """Main Structmap module.
 Does things such as mapping of Tajima's D to a protein structure.
-This doc-string needs updating."""
+"""
 from __future__ import absolute_import, division, print_function
 
 from copy import copy

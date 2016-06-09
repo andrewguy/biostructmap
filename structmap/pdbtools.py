@@ -139,10 +139,6 @@ def map_function(chain, method, data, residues, ref=None):
     output = method(chain, data, residues, ref)
     return output
 
-def map_function_for_pool(residues, chain, method, data, residue_map, ref=None):
-    """Map function with arguments rearranged for multiprocessin pool"""
-    return map_function(chain, method, data, residue_map[residues], ref=ref)
-
 def _count_residues(_chain, _data, residues, _ref):
     """Simple function to count the number of residues within a radius"""
     return len(residues)
@@ -158,7 +154,7 @@ def _tajimas_d(_chain, alignment, residues, ref):
     #Get list of codons that correspond to selected residues
     codons = [ref[res] for res in residues]
     #Get alignment bp from selected codons
-    sub_align = _construct_sub_align(alignment, codons)
+    sub_align = _construct_sub_align(alignment, codons, fasta=True)
     #Compute Tajima's D using selected codons.
     tajd = gentests.tajimas_d(sub_align)
     return tajd

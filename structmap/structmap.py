@@ -3,9 +3,7 @@ Does things such as mapping of Tajima's D to a protein structure.
 This doc-string needs updating."""
 from __future__ import absolute_import, division, print_function
 
-from copy import copy, deepcopy
-from functools import partial
-from multiprocessing import Pool
+from copy import copy
 import tempfile
 import Bio.PDB
 from Bio.PDB import DSSP
@@ -13,8 +11,7 @@ from Bio import SeqIO, AlignIO
 from . import utils, pdbtools, gentests
 from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
                        _map_amino_acid_scale,
-                       match_pdb_residue_num_to_seq,
-                       map_function_for_pool)
+                       match_pdb_residue_num_to_seq)
 from .seqtools import (blast_sequences, align_protein_to_dna,
                        _construct_sub_align)
 
@@ -95,7 +92,6 @@ class Chain(object):
         self._id = chain.get_id()
         self.chain = chain
         self._parent = model
-        self.allow_deepcopy = False
         if isinstance(pdbfile, str):
             try:
                 self.dssp = DSSP(model.model, pdbfile)
@@ -117,11 +113,6 @@ class Chain(object):
             self.sequence = pdbtools.get_pdb_seq_from_atom(chain)
             self._parent.parent().sequences[self.get_id()] = self.sequence
         self._nearby = {}
-        #try:
-        #    deepcopy(chain)
-        #except RecursionError:
-        #    print("Warning: Not using multiprocessing for {pdb} due to recursion error.".format(pdb=self._parent._parent.pdbname))
-        #    self.allow_deepcopy = False
 
     def __iter__(self):
         for residue in self.chain:
@@ -193,7 +184,7 @@ class Chain(object):
         seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
         #Generate a map of nearby residues for each residue in pdb file. numbering
         #is according to pdb residue numbering from file
-        residue_map = pdbtools.nearby(self.chain, radius=radius, selector=selector)
+        residue_map = self.nearby(radius=radius, atom=selector)
         results = {}
         if ref is None and method != 'tajimasd':
             ref = self.sequence
@@ -213,37 +204,13 @@ class Chain(object):
         #structure (ie has coordinates)
         pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x in
                          pdbindex_to_ref if x in seq_index_to_pdb_numb}
-        try:
-            if not self.allow_deepcopy:
-                raise RecursionError
-            #ENABLE MULTIPROCESSING USING POOL MODULE
-            #Bit of wangling to eliminate a deepcopy error in Bio.PDB structures
-            #Requires that we build the Bio.PDB structure from scratch within
-            #each subprocess.
-            residues = sorted(residue_map)
-            partial_func = partial(map_function_for_pool, residue_map=residue_map,
-                                   chain=self, method=method, data=data, ref=pdbnum_to_ref)
-            with Pool(4) as p:
-                pool_results = p.map(partial_func, residues)
-            results = dict(zip(residues, pool_results))
-            #END MULTIPROCESSING
-        except AttributeError:
-            print("Warning: Not using multiprocessing. Try defining your custom " +
-                  "method in the top level of your module.")
-            results = {}
-            #For each residue within the sequence, apply a function and return result.
-            for residue in residue_map:
-                results[residue] = pdbtools.map_function(self, method, data,
-                                                         residue_map[residue],
-                                                         ref=pdbnum_to_ref)
-        except RecursionError:
-            self.allow_deepcopy = False
-            results = {}
-            #For each residue within the sequence, apply a function and return result.
-            for residue in residue_map:
-                results[residue] = pdbtools.map_function(self, method, data,
-                                                         residue_map[residue],
-                                                         ref=pdbnum_to_ref)
+
+        results = {}
+        #For each residue within the sequence, apply a function and return result.
+        for residue in residue_map:
+            results[residue] = pdbtools.map_function(self, method, data,
+                                                     residue_map[residue],
+                                                     ref=pdbnum_to_ref)
 
         return results
 
@@ -312,18 +279,26 @@ class SequenceAlignment(object):
     """
     def __init__(self, alignfile, file_format='fasta'):
         self.alignment = AlignIO.read(alignfile, file_format)
+        self.alignment_fasta = self.alignment.format('fasta')
+        self._alignment_position_dict = None
+        self._isolate_ids = None
 
     def __getitem__(self, key):
         return self.alignment[key]
 
-    def translate(self, index):
-        """Translate to protein sequence. Translates until stop codon.
-        Trims sequence to a multiple of 3.
-        """
-        length = len(self.alignment[index])
-        overhang = length % 3
-        translation = self.alignment[index, 0:length-overhang].seq.translate(to_stop=True)
-        return translation
+    def get_alignment_position_dict(self):
+        if self._alignment_position_dict is None:
+            self._alignment_position_dict = {}
+            for i in range(len(self.alignment[0])):
+                self._alignment_position_dict[i] = self.alignment[:, i]
+
+        return self._alignment_position_dict
+
+    def get_isolate_ids(self):
+        if self._isolate_ids is None:
+            self._isolate_ids = [seq.id for seq in self.alignment]
+        return self._isolate_ids
+
 
     def tajimas_d(self, window=None, step=3, protein_ref=None, genome_ref=None,
                   output_protein_num=False):
@@ -354,7 +329,7 @@ class SequenceAlignment(object):
             #Get sorted list of codons
             codons = [prot_to_genome[x] for x in sorted(prot_to_genome)]
             #Construct a sub-alignment
-            alignment = _construct_sub_align(self.alignment, codons)
+            alignment = _construct_sub_align(self, codons, fasta=True)
         elif genome_ref is None and protein_ref is None:
             alignment = self.alignment
         elif protein_ref is None:

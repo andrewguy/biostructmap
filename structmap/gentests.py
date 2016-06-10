@@ -4,8 +4,7 @@ Part of the structmap package.
 from __future__ import absolute_import, division, print_function
 
 import dendropy
-from structmap.seqtools import (_var_site, _join_alignments,
-                                _sliding_window_var_sites)
+from structmap.seqtools import _sliding_window_var_sites
 
 def tajimas_d(alignment, window=None, step=3):
     """
@@ -19,8 +18,7 @@ def tajimas_d(alignment, window=None, step=3):
         results = {}
         prev_win = None
         prev_d = None
-        slide = _sliding_window_var_sites(alignment, window, step=step,
-                                          isfile=False)
+        slide = _sliding_window_var_sites(alignment, window, step=step, isfile=False)
         for i, win in enumerate(slide):
             centre = i*step + 1 + (window-1)/2
             if win == prev_win:

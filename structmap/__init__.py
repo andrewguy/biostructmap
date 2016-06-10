@@ -4,5 +4,5 @@
 
 from .structmap import Structure, Sequence, SequenceAlignment
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 __all__ = ["structmap", "seqtools", "pdbtools", "gentests", "utils"]

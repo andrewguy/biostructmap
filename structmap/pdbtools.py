@@ -96,7 +96,10 @@ def get_pdb_seq(filename):
         seq = [s for s in PdbIO.PdbSeqresIterator(filename)]
     #A bit of manipulation to get Seq object into a dictionary
     #Key is chain ID, and value is sequence as a string.
-    sequences = {s.id.split(":")[1]:''.join([x for x in s]) for s in seq}
+    try:
+        sequences = {s.id.split(":")[1]:''.join([x for x in s]) for s in seq}
+    except IndexError:
+        sequences = {s.id:''.join([x for x in s]) for s in seq}
     return sequences
 
 def get_pdb_seq_from_atom(chain):

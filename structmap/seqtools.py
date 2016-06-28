@@ -220,8 +220,11 @@ def align_protein_to_dna(prot_seq, dna_seq):
             exonerate_call.append("--score")
             exonerate_call.append(threshold)
         alignment = subprocess.check_output(exonerate_call)
-    vulgar_format = re.search(r"(?<=vulgar:).*(?=\n)",
-                              alignment.decode("utf-8")).group(0)
+    vulgar_re = re.search(r"(?<=vulgar:).*(?=\n)",
+                              alignment.decode("utf-8"))
+    if not vulgar_re:
+        raise UserWarning("Did not find exonerate alignment.")
+    vulgar_format = vulgar_re.group(0)
     protein_start = vulgar_format.split()[0]
     dna_start = vulgar_format.split()[3]
     matches = vulgar_format.split()[7:]

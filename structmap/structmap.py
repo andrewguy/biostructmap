@@ -153,7 +153,10 @@ class Chain(object):
         for residue in self.chain:
             key = (self.get_id(), residue.get_id())
             if key in self.dssp:
-                rsa[key[1][1]] = self.dssp[key][3]
+                try:
+                    rsa[key[1][1]] = float(self.dssp[key][3])
+                except ValueError:
+                    rsa[key[1][1]] = None
         return rsa
 
     def map(self, data, method='default', ref=None, radius=15, selector='all'):

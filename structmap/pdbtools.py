@@ -119,7 +119,9 @@ def get_pdb_seq_from_atom(chain):
 def match_pdb_residue_num_to_seq(chain, ref=None):
     """Match PDB residue numbering (as given in PDB file) to
     a reference sequence (can be pdb sequence) numbered by index.
-    Reference sequence is 1-indexed (and is indexed as such in output)
+    Reference sequence is 1-indexed (and is indexed as such in output).
+    Output is a dictionary mapping reference sequence index (key) to
+    residue numbering as given in the PDB file (value).
     """
     if ref is None:
         ref = chain.sequence

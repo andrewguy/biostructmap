@@ -92,12 +92,13 @@ class Chain(object):
         self._id = chain.get_id()
         self.chain = chain
         self._parent = model
-        if isinstance(pdbfile, str):
+        #DSSP only works on the first model in the PDB file
+        if isinstance(pdbfile, str) and model.get_id() == 0:
             try:
                 self.dssp = DSSP(model.model, pdbfile)
             except OSError:
                 self.dssp = DSSP(model.model, pdbfile, dssp="mkdssp")
-        else:
+        elif model.get_id() == 0:
             with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
                 temp_pdb_file.write(copy(pdbfile).read())
                 temp_pdb_file.flush()
@@ -105,6 +106,8 @@ class Chain(object):
                     self.dssp = DSSP(model.model, temp_pdb_file.name)
                 except OSError:
                     self.dssp = DSSP(model.model, temp_pdb_file.name, dssp="mkdssp")
+        else:
+            self.dssp = {}
         #Some PDB files do not contain sequences in the header, and
         #hence we need to parse the atom records for each chain
         try:

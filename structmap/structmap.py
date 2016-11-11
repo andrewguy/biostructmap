@@ -67,6 +67,22 @@ class Model(object):
         self._id = model.get_id()
         self.model = model
         self._parent = structure
+        #DSSP only works on the first model in the PDB file
+        if isinstance(pdbfile, str) and self._id == 0:
+            try:
+                self.dssp = DSSP(self.model, pdbfile)
+            except OSError:
+                self.dssp = DSSP(self.model, pdbfile, dssp="mkdssp")
+        elif self._id == 0:
+            with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
+                temp_pdb_file.write(copy(pdbfile).read())
+                temp_pdb_file.flush()
+                try:
+                    self.dssp = DSSP(self.model, temp_pdb_file.name)
+                except OSError:
+                    self.dssp = DSSP(self.model, temp_pdb_file.name, dssp="mkdssp")
+        else:
+            self.dssp = {}
         self.chains = {chain.get_id():Chain(self, chain, pdbfile) for
                        chain in self.model}
 
@@ -92,22 +108,8 @@ class Chain(object):
         self._id = chain.get_id()
         self.chain = chain
         self._parent = model
-        #DSSP only works on the first model in the PDB file
-        if isinstance(pdbfile, str) and model.get_id() == 0:
-            try:
-                self.dssp = DSSP(model.model, pdbfile)
-            except OSError:
-                self.dssp = DSSP(model.model, pdbfile, dssp="mkdssp")
-        elif model.get_id() == 0:
-            with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
-                temp_pdb_file.write(copy(pdbfile).read())
-                temp_pdb_file.flush()
-                try:
-                    self.dssp = DSSP(model.model, temp_pdb_file.name)
-                except OSError:
-                    self.dssp = DSSP(model.model, temp_pdb_file.name, dssp="mkdssp")
-        else:
-            self.dssp = {}
+        #Refer to model for DSSP data
+        self.dssp = self._parent.dssp
         #Some PDB files do not contain sequences in the header, and
         #hence we need to parse the atom records for each chain
         try:

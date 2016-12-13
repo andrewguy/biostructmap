@@ -8,9 +8,7 @@ import tempfile
 import re
 import operator
 from io import StringIO
-
 from Bio import AlignIO
-from Bio.SubsMat import MatrixInfo
 from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML
 
@@ -151,24 +149,27 @@ def blast_sequences(comp_seq, ref_seq):
     return pdb_to_ref, ref_to_pdb
 
 
-def _construct_sub_align(alignments, codons):
+def _construct_sub_align(alignment, codons, fasta=False):
     """
-    Take a multiple sequence alignment object, and return a subset of codons
-    based on an input list in the form [(1,2,3),(4,5,6),...].
+    Take a structmap multiple sequence alignment object, and return a
+    subset of codons based on an input list in the form [(1,2,3),(4,5,6),...].
     Return subset of the initial alignment as a multiple sequence alignment
     object.
     Note that codons should be 1-indexed.
     """
+    alignments = alignment.get_alignment_position_dict()
+    strains = alignment.get_isolate_ids()
     codons = [x for sublist in codons for x in sublist]
-    sub_align = {}
-    #Small hack to set type of 'sub_align' variable if no alignments fall
-    #within initial window
-    sub_align[-1] = alignments[:, 0:0]
+    sub_align = []
     for codon in codons:
         #List is zero indexed, hence the need to call codon-1
-        sub_align[codon] = alignments[:, codon - 1: codon]
-    output = _join_alignments(sub_align)
-    return output
+        sub_align.append(list(alignments[codon-1]))
+    _sub_align_transpose = zip(*sub_align)
+    sub_align_transpose = [''.join(x) for x in _sub_align_transpose]
+    if fasta:
+        fasta_out = ''.join('>{}\n{}\n'.format(*t) for t in zip(strains, sub_align_transpose))
+        return fasta_out
+    return sub_align_transpose
 
 def prot_to_dna_position(dna_indices, prot_indices):
     """
@@ -219,8 +220,11 @@ def align_protein_to_dna(prot_seq, dna_seq):
             exonerate_call.append("--score")
             exonerate_call.append(threshold)
         alignment = subprocess.check_output(exonerate_call)
-    vulgar_format = re.search(r"(?<=vulgar:).*(?=\n)",
-                              alignment.decode("utf-8")).group(0)
+    vulgar_re = re.search(r"(?<=vulgar:).*(?=\n)",
+                              alignment.decode("utf-8"))
+    if not vulgar_re:
+        raise UserWarning("Did not find exonerate alignment.")
+    vulgar_format = vulgar_re.group(0)
     protein_start = vulgar_format.split()[0]
     dna_start = vulgar_format.split()[3]
     matches = vulgar_format.split()[7:]

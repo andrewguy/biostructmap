@@ -128,16 +128,18 @@ class TestPdbtools(TestCase):
         self.assertEqual(output, (self.test_chain, data, residues, ref))
 
     def test_tajimas_d_on_structure(self):
-        test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
-        test_ref_dict = {x+86: (x*3, x*3 + 1, x*3 + 2) for x in range(18)}
+        #test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
+        test_sequence_alignment = structmap.SequenceAlignment('./tests/msa/msa_test_86-104', 'fasta')
+        test_ref_dict = {x+86: (x*3+1, x*3 + 2, x*3 + 3) for x in range(0,18)}
         test_surrounding_residues = range(86,104)
         result = _tajimas_d(self.test_chain, test_sequence_alignment,
                             test_surrounding_residues, test_ref_dict)
         self.assertEqual(result, -0.7801229937910628)
 
     def test_tajimas_d_on_structure_with_subset_of_reference_residues(self):
-        test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
-        test_ref_dict = {x+86: (x*3, x*3 + 1, x*3 + 2) for x in range(18)}
+        #test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
+        test_sequence_alignment = structmap.SequenceAlignment('./tests/msa/msa_test_86-104', 'fasta')
+        test_ref_dict = {x+86: (x*3 + 1, x*3 + 2, x*3 + 3) for x in range(18)}
         test_surrounding_residues = range(86,96)
         result = _tajimas_d(self.test_chain, test_sequence_alignment,
                             test_surrounding_residues, test_ref_dict)
@@ -147,6 +149,7 @@ class TestSeqtools(TestCase):
     def setUp(self):
         self.test_file = './tests/msa/MSA_test.fsa'
         self.alignment = AlignIO.read(self.test_file, 'fasta')
+        self.structmap_alignment = structmap.SequenceAlignment('./tests/msa/MSA_test.fsa')
         self.varsites = seqtools._var_site(self.alignment)
 
     def tearDown(self):
@@ -304,9 +307,9 @@ class TestSeqtools(TestCase):
 
     def test_sub_align(self):
         codons = [(1,2,3),(4,5,6),(10,11,12)]
-        result = _construct_sub_align(self.alignment, codons)
+        result = _construct_sub_align(self.structmap_alignment, codons, 'fasta')
         to_match = self.alignment[:,0:6] + self.alignment[:,9:12]
-        self.assertEqual(to_match.format('fasta'), result.format('fasta'))
+        self.assertEqual(to_match.format('fasta'), result)
 
 class TestGentests(TestCase):
     def setUp(self):
@@ -455,9 +458,6 @@ class TestStructmap(TestCase):
             self.assertTrue(isinstance(seq, Bio.SeqRecord.SeqRecord))
             #test _getitem__ method work to return a model object
             self.assertTrue(isinstance(test_align[i], Bio.SeqRecord.SeqRecord))
-        translation = test_align.translate(0)
-        translation_to_match = "MKCNISIYFF"
-        self.assertEqual(translation, translation_to_match)
 
     def test_tajimas_d_on_sequence_alignment(self):
         test_align = structmap.SequenceAlignment('./tests/msa/MSA_test.fsa')
@@ -469,3 +469,8 @@ class TestStructmap(TestCase):
             test_align.tajimas_d(3.5,5)
         with self.assertRaises(TypeError):
             test_align.tajimas_d(3,5.5)
+
+    def test_tajimas_d_on_long_sequence(self):
+        test_align = structmap.SequenceAlignment('./tests/msa/MSA_test_long.fsa')
+        taj_d = test_align.tajimas_d()
+        self.assertEqual(taj_d, 0.33458440732186856)

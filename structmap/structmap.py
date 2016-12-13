@@ -1,6 +1,6 @@
 """Main Structmap module.
 Does things such as mapping of Tajima's D to a protein structure.
-This doc-string needs updating."""
+"""
 from __future__ import absolute_import, division, print_function
 
 from copy import copy
@@ -9,11 +9,9 @@ import Bio.PDB
 from Bio.PDB import DSSP
 from Bio import SeqIO, AlignIO
 from . import utils, pdbtools, gentests
-from .exceptions import MissingArgument
 from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
                        _map_amino_acid_scale,
-                       match_pdb_residue_num_to_seq,
-                       map_function_for_pool)
+                       match_pdb_residue_num_to_seq)
 from .seqtools import (blast_sequences, align_protein_to_dna,
                        _construct_sub_align)
 
@@ -69,6 +67,22 @@ class Model(object):
         self._id = model.get_id()
         self.model = model
         self._parent = structure
+        #DSSP only works on the first model in the PDB file
+        if isinstance(pdbfile, str) and self._id == 0:
+            try:
+                self.dssp = DSSP(self.model, pdbfile)
+            except OSError:
+                self.dssp = DSSP(self.model, pdbfile, dssp="mkdssp")
+        elif self._id == 0:
+            with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
+                temp_pdb_file.write(copy(pdbfile).read())
+                temp_pdb_file.flush()
+                try:
+                    self.dssp = DSSP(self.model, temp_pdb_file.name)
+                except OSError:
+                    self.dssp = DSSP(self.model, temp_pdb_file.name, dssp="mkdssp")
+        else:
+            self.dssp = {}
         self.chains = {chain.get_id():Chain(self, chain, pdbfile) for
                        chain in self.model}
 
@@ -94,19 +108,8 @@ class Chain(object):
         self._id = chain.get_id()
         self.chain = chain
         self._parent = model
-        if isinstance(pdbfile, str):
-            try:
-                self.dssp = DSSP(model.model, pdbfile)
-            except OSError:
-                self.dssp = DSSP(model.model, pdbfile, dssp="mkdssp")
-        else:
-            with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
-                temp_pdb_file.write(copy(pdbfile).read())
-                temp_pdb_file.flush()
-                try:
-                    self.dssp = DSSP(model.model, temp_pdb_file.name)
-                except OSError:
-                    self.dssp = DSSP(model.model, temp_pdb_file.name, dssp="mkdssp")
+        #Refer to model for DSSP data
+        self.dssp = self._parent.dssp
         #Some PDB files do not contain sequences in the header, and
         #hence we need to parse the atom records for each chain
         try:
@@ -155,7 +158,10 @@ class Chain(object):
         for residue in self.chain:
             key = (self.get_id(), residue.get_id())
             if key in self.dssp:
-                rsa[key[1][1]] = self.dssp[key][3]
+                try:
+                    rsa[key[1][1]] = float(self.dssp[key][3])
+                except ValueError:
+                    rsa[key[1][1]] = None
         return rsa
 
     def map(self, data, method='default', ref=None, radius=15, selector='all'):
@@ -186,7 +192,7 @@ class Chain(object):
         seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
         #Generate a map of nearby residues for each residue in pdb file. numbering
         #is according to pdb residue numbering from file
-        residue_map = pdbtools.nearby(self.chain, radius=radius, selector=selector)
+        residue_map = self.nearby(radius=radius, atom=selector)
         results = {}
         if ref is None and method != 'tajimasd':
             ref = self.sequence
@@ -279,18 +285,26 @@ class SequenceAlignment(object):
     """
     def __init__(self, alignfile, file_format='fasta'):
         self.alignment = AlignIO.read(alignfile, file_format)
+        self.alignment_fasta = self.alignment.format('fasta')
+        self._alignment_position_dict = None
+        self._isolate_ids = None
 
     def __getitem__(self, key):
         return self.alignment[key]
 
-    def translate(self, index):
-        """Translate to protein sequence. Translates until stop codon.
-        Trims sequence to a multiple of 3.
-        """
-        length = len(self.alignment[index])
-        overhang = length % 3
-        translation = self.alignment[index, 0:length-overhang].seq.translate(to_stop=True)
-        return translation
+    def get_alignment_position_dict(self):
+        if self._alignment_position_dict is None:
+            self._alignment_position_dict = {}
+            for i in range(len(self.alignment[0])):
+                self._alignment_position_dict[i] = self.alignment[:, i]
+
+        return self._alignment_position_dict
+
+    def get_isolate_ids(self):
+        if self._isolate_ids is None:
+            self._isolate_ids = [seq.id for seq in self.alignment]
+        return self._isolate_ids
+
 
     def tajimas_d(self, window=None, step=3, protein_ref=None, genome_ref=None,
                   output_protein_num=False):
@@ -321,13 +335,13 @@ class SequenceAlignment(object):
             #Get sorted list of codons
             codons = [prot_to_genome[x] for x in sorted(prot_to_genome)]
             #Construct a sub-alignment
-            alignment = _construct_sub_align(self.alignment, codons)
+            alignment = _construct_sub_align(self, codons, fasta=True)
         elif genome_ref is None and protein_ref is None:
             alignment = self.alignment
         elif protein_ref is None:
-            raise MissingArgument("Missing protein_ref assignment")
+            raise TypeError("Missing protein_ref assignment")
         elif genome_ref is None:
-            raise MissingArgument("Missing genome_ref assignment")
+            raise TypeError("Missing genome_ref assignment")
 
         #Perform Tajima's D calculation
         try:

@@ -11,6 +11,25 @@ import numpy as np
 from .seqtools import _construct_sub_align, blast_sequences
 from . import gentests
 
+ss_lookup_dict = {
+    'H': 0,
+    'B': 1,
+    'E': 2,
+    'G': 3,
+    'I': 4,
+    'T': 5,
+    'S': 6,
+    '-': 7,
+    0: 'H',
+    1: 'B',
+    2: 'E',
+    3: 'G',
+    4: 'I',
+    5: 'T',
+    6: 'S',
+    7: '-'
+    }
+
 def _euclidean_distance_matrix(chain, selector='all'):
     """Compute the Euclidean distance matrix for all atoms in a pdb chain.
     Return the euclidean distance matrix and a reference list of all atoms

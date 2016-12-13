@@ -11,7 +11,8 @@ from Bio import SeqIO, AlignIO
 from . import utils, pdbtools, gentests
 from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
                        _map_amino_acid_scale,
-                       match_pdb_residue_num_to_seq)
+                       match_pdb_residue_num_to_seq,
+                       ss_lookup_dict)
 from .seqtools import (blast_sequences, align_protein_to_dna,
                        _construct_sub_align)
 
@@ -164,6 +165,46 @@ class Chain(object):
                     rsa[key[1][1]] = None
         return rsa
 
+    def secondary_structure(self, numeric_ss_code=False):
+        '''Use DSSP to calculate secondary structure elements.
+        Return a dictionary with secondary structure assignment (value)
+        for each residue (key) with the chain.
+        Secondary structure assignment notation follows that of the DSSP program.
+        The DSSP codes for secondary structure used here are:
+            =====     ====
+            Code      Structure
+            =====     ====
+             H        Alpha helix (4-12)
+             B        Isolated beta-bridge residue
+             E        Strand
+             G        3-10 helix
+             I        Pi helix
+             T        Turn
+             S        Bend
+             -       None
+            =====     ====
+        If kwarg `numeric_ss_code` == True, then secondary structure values
+        will be returned as integers according to the following lookup table:
+        {
+        'H': 0,
+        'B': 1,
+        'E': 2,
+        'G': 3,
+        'I': 4,
+        'T': 5,
+        'S': 6,
+        '-', 7
+        }
+        These are provided in pdbtools.ss_lookup_dict, as well as the reverse
+        lookups (i.e. 0: 'H').
+        '''
+        keys = [x for x in self.dssp.keys() if x[0] == self._id]
+        ss_dict = {x[1][1]: self.dssp.property_dict[x][2] for x in keys}
+        if numeric_ss_code:
+            return {key:ss_lookup_dict[item] for key, item in ss_dict.items()}
+        else:
+            return ss_dict
+
     def map(self, data, method='default', ref=None, radius=15, selector='all'):
         """Perform a mapping of some parameter or function to a pdb structure,
         with the ability to apply the function over a '3D sliding window'.
@@ -255,8 +296,8 @@ class Chain(object):
                 for res in data:
                     if res not in pdbnum_to_ref:
                         output = ("Residue {res} in PDB file {pdb} was not"
-                                 " matched to reference sequence provided"
-                                 " for writing to output file").format(
+                                  " matched to reference sequence provided"
+                                  " for writing to output file").format(
                                         res=res, pdb=self.parent().parent().pdbname)
 
                         print(output)

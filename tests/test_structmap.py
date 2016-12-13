@@ -474,3 +474,18 @@ class TestStructmap(TestCase):
         test_align = structmap.SequenceAlignment('./tests/msa/MSA_test_long.fsa')
         taj_d = test_align.tajimas_d()
         self.assertEqual(taj_d, 0.33458440732186856)
+
+    def test_secondary_structure_dictionary_creation(self):
+        chain = structmap.Structure(self.test_file)[0]['A']
+        ss_dict_numeric = {1: 7, 2: 7, 3: 7, 4: 6, 5: 6, 6: 6,
+                           7: 5, 8: 5, 9: 7, 10: 7, 11: 7, 12: 7,
+                           13: 7, 14: 5, 15: 5, 16: 7, 17: 5, 18: 5,
+                           19: 7, 20: 7, 21: 7, 22: 6, 23: 7, 24: 7}
+        ss_dict = {1: '-', 2: '-', 3: '-', 4: 'S', 5: 'S',
+                   6: 'S', 7: 'T', 8: 'T', 9: '-', 10: '-',
+                   11: '-', 12: '-', 13: '-', 14: 'T', 15: 'T',
+                   16: '-', 17: 'T', 18: 'T', 19: '-', 20: '-',
+                   21: '-', 22: 'S', 23: '-', 24: '-'}
+        self.assertDictEqual(ss_dict, chain.secondary_structure())
+        self.assertDictEqual(ss_dict_numeric,
+                             chain.secondary_structure(numeric_ss_code=True))

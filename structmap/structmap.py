@@ -276,6 +276,13 @@ class Chain(object):
                     line = sep.join(data_pt) + '\n'
                     f.write(line)
 
+    def residue_to_atom_map(self):
+        """Return a map of residue number (per numbering in PDB file)
+        to atom number for this chain
+        """
+        mapping = {residue.id[1]:tuple(atom.serial_number for atom in residue) for residue in self.chain}
+        return mapping
+
 
     def write_to_residue(self, data, output, sep=',', ref=None):
         """Write score for each residue in a structure to a file, based on a

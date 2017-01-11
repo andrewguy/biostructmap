@@ -480,6 +480,13 @@ class TestStructmap(TestCase):
         taj_d = test_align.tajimas_d()
         self.assertEqual(taj_d, 0.33458440732186856)
 
+    def test_residue_number_to_atom_number_function(self):
+        structure = structmap.Structure(self.test_file)
+        mapping = structure[0]['A'].residue_to_atom_map()
+        self.assertEqual(len(mapping), 25)
+        first_residue_atoms = list(range(1,21))
+        self.assertEqual(sorted(mapping[1]), first_residue_atoms)
+
     def test_secondary_structure_dictionary_creation(self):
         chain = structmap.Structure(self.test_file)[0]['A']
         ss_dict_numeric = {1: 7, 2: 7, 3: 7, 4: 6, 5: 6, 6: 6,

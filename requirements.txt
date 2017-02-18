@@ -1,5 +1,5 @@
 biopython (1.66)
-DendroPy (4.0.3)
+DendroPy (4.2.0)
 numpy (1.10.4)
 pip (8.0.2)
 py (1.4.31)

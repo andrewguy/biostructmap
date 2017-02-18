@@ -346,15 +346,6 @@ class TestStructmap(TestCase):
     def setUp(self):
         self.test_file = './tests/pdb/1as5.pdb'
         self.test_align = './tests/msa/MSA_small.fsa'
-    def test_sequence_class(self):
-        test_file = "./tests/fasta/test_seq.fsa"
-        seq_to_match = ("MKCNISIYFFASFFVLYFAKARNEYDIKENEKFLDVYKEKFNELDKKKYGNVQKTDKKIF"
-                       "TFIENKLDILNNSKFNKRWKSYGTPDNIDKNMSLINKHNNEEMFNNNYQSFLSTSSLIKQ"
-                       "NKYVPINAVRVSRILSFLDSRIN"
-                       )
-        seqobj = structmap.Sequence(test_file)
-        sequence = seqobj.sequence()
-        self.assertEqual(sequence,seq_to_match)
 
     def test_structure_object_instantiation(self):
         structure = structmap.Structure(self.test_file)

@@ -1,13 +1,52 @@
-"""Main Structmap module.
-Does things such as mapping of Tajima's D to a protein structure.
+"""
+Main PDB Structure Mapping (StructMap) module. This package implements
+techniques to map data onto a protein PDB structure.
+
+Rationale:
+
+Whilst many protein-related data (such as genetic polymorphisms) can be easily
+related to a reference protein sequence, it is slightly more involved to map
+this data onto a protein structure. For example, when viewing polymorphisms
+that have arisen as a result of immune selection pressure, it is instructive
+to be able to view the location of these polymorphisms in the context of the
+protein 3D structure. Furthermore, it may also be instructive to average this
+data over a radius around a central residue. In our example case of protein
+polymoprhisms, this allows the user to identify polymorphic hotspots on the
+protein structure.
+
+We can extend this concept further, and consider genetic tests for phenomena
+which arise as a result of selection pressure at the level of protein structure.
+For example, antibody-mediated immune selection pressure gives rise to balancing
+selection at the level of population genetics. A number of methods exist to
+identify regions of the genome under balancing selection, including Tajima's D.
+Tajima's D is often calculated as a sliding window over a genome. However, when
+the origins of balancing selection occur at the level of protein structure,
+it can be useful to also consider protein spatial information when computing
+Tajima's D using a sliding window. In essence, we could calculate Tajima's D
+using a 3D sliding window over a protein structure. The StructMap package
+automates this process.
+
+Details:
+
+The StructMap package makes extensive use of the Biopython Bio.PDB module for
+PDB file parsing and integration with calculation of secondary structure
+and relative solvent accessibility via the DSSP program. Calculation of Tajima's
+D is performed using DendroPy, although several optimisations are performed
+before passing a multiple sequence alignment to DendroPy in order to speed
+up calculation of Tajima's D, such as removal of non-polymorphic sites and
+memoization of results from previous windows when calculating a sliding window
+value of Tajima's D.
+
+
+
+
 """
 from __future__ import absolute_import, division, print_function
 
-from copy import copy
 import tempfile
 import Bio.PDB
 from Bio.PDB import DSSP
-from Bio import SeqIO, AlignIO
+from Bio import AlignIO
 from . import utils, pdbtools, gentests
 from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
                        _map_amino_acid_scale,
@@ -23,12 +62,13 @@ class Structure(object):
         #create pdb parser, get structure.
         parser = Bio.PDB.PDBParser()
         #Get Bio.PDB structure
-        self.structure = parser.get_structure(pdbname, copy(pdbfile))
-        #Get PDB sequences
-        self.sequences = pdbtools.get_pdb_seq(copy(pdbfile))
-        self.models = {model.get_id():Model(self, model, copy(pdbfile)) for
-                       model in self.structure}
         self._pdbfile = pdbfile
+        self.structure = parser.get_structure(pdbname, self.pdb_file())
+        #Get PDB sequences
+        self.sequences = pdbtools.get_pdb_seq(self.pdb_file())
+        self.models = {model.get_id():Model(self, model) for
+                       model in self.structure}
+
         self.pdbname = pdbname
 
     def __iter__(self):
@@ -38,12 +78,15 @@ class Structure(object):
     def __getitem__(self, key):
         return self.models[key]
 
-    def get_pdb_file(self):
-        """
-        Returns a copy of the pdb file object (can be a stringIO object
-        or the name of the pdbfile.)
-        """
-        return copy(self._pdbfile)
+    def pdb_file(self):
+        '''
+        Return the PDB file object, which can either be a string, or a file-like
+        object. If it is a file-like object, sets read point to start of the
+        file or stream.
+        '''
+        if not isinstance(self._pdbfile, str):
+            self._pdbfile.seek(0)
+        return self._pdbfile
 
     def map(self, data, method='default', ref=None, radius=15, selector='all'):
         """Function which performs a mapping of some parameter or function to
@@ -64,19 +107,19 @@ class Structure(object):
 
 class Model(object):
     """A class to hold a PDB model object. """
-    def __init__(self, structure, model, pdbfile):
+    def __init__(self, structure, model):
         self._id = model.get_id()
         self.model = model
         self._parent = structure
         #DSSP only works on the first model in the PDB file
-        if isinstance(pdbfile, str) and self._id == 0:
+        if isinstance(structure.pdb_file(), str) and self._id == 0:
             try:
-                self.dssp = DSSP(self.model, pdbfile)
+                self.dssp = DSSP(self.model, structure.pdb_file())
             except OSError:
-                self.dssp = DSSP(self.model, pdbfile, dssp="mkdssp")
+                self.dssp = DSSP(self.model, structure.pdb_file(), dssp="mkdssp")
         elif self._id == 0:
             with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
-                temp_pdb_file.write(copy(pdbfile).read())
+                temp_pdb_file.write(structure.pdb_file().read())
                 temp_pdb_file.flush()
                 try:
                     self.dssp = DSSP(self.model, temp_pdb_file.name)
@@ -84,7 +127,7 @@ class Model(object):
                     self.dssp = DSSP(self.model, temp_pdb_file.name, dssp="mkdssp")
         else:
             self.dssp = {}
-        self.chains = {chain.get_id():Chain(self, chain, pdbfile) for
+        self.chains = {chain.get_id():Chain(self, chain) for
                        chain in self.model}
 
     def __iter__(self):
@@ -105,7 +148,7 @@ class Model(object):
 
 class Chain(object):
     """A class to hold a PDB chain object."""
-    def __init__(self, model, chain, pdbfile):
+    def __init__(self, model, chain):
         self._id = chain.get_id()
         self.chain = chain
         self._parent = model
@@ -283,7 +326,6 @@ class Chain(object):
         mapping = {residue.id[1]:tuple(atom.serial_number for atom in residue) for residue in self.chain}
         return mapping
 
-
     def write_to_residue(self, data, output, sep=',', ref=None):
         """Write score for each residue in a structure to a file, based on a
         dictionary mapping output score to residue number.
@@ -312,16 +354,6 @@ class Chain(object):
                     data_pt = [str(x) for x in [pdbnum_to_ref[res], data[res]]]
                     line = sep.join(data_pt) + '\n'
                     f.write(line)
-
-class Sequence(object):
-    """A class to hold a protein sequence"""
-    def __init__(self, seqfile):
-        self.seqrecord = SeqIO.read(open(seqfile), "fasta")
-
-    def sequence(self):
-        """Get protein sequence as a string"""
-        sequence = utils.to_string(self.seqrecord)
-        return sequence
 
 
 class SequenceAlignment(object):

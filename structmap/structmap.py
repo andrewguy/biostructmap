@@ -37,15 +37,13 @@ up calculation of Tajima's D, such as removal of non-polymorphic sites and
 memoization of results from previous windows when calculating a sliding window
 value of Tajima's D.
 
-
-
-
 """
 from __future__ import absolute_import, division, print_function
 
+from copy import deepcopy
 import tempfile
-import Bio.PDB
-from Bio.PDB import DSSP
+from os import path
+from Bio.PDB import DSSP, PDBIO, PDBParser, Select
 from Bio import AlignIO
 from . import utils, pdbtools, gentests
 from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
@@ -55,12 +53,44 @@ from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
 from .seqtools import (blast_sequences, align_protein_to_dna,
                        _construct_sub_align)
 
+class DataMap(dict):
+    '''
+    A class to hold a mapping of data to some PDB object. Extends the `dict`
+    class, adding a few methods to allow correspondence between data and PDB
+    chain object.
+    '''
+    def __init__(self, *args, **kw):
+        super(DataMap, self).__init__(*args, **kw)
+        self.chain = kw['chain']
+        self.params = kw['params']
+
+    def write_data_to_pdb_b_factor(self, default_no_value=0, outdir='', filename=None):
+        #Make copy of chain object
+        _chain = deepcopy(self.chain)
+        _structure = _chain.parent().parent()
+        #Set all B-factor fields to zeros
+        for residue in _chain:
+            _data = self.get(residue.get_id()[1], default_no_value)
+            for atom in residue:
+                atom.set_bfactor(float(_data))
+        io = PDBIO()
+        io.set_structure(_chain.chain)
+        if filename is None:
+            filename = _structure.pdbname + '_' + self._parameter_string() + '.pdb'
+        io.save(path.join(outdir, filename))
+        return None
+
+    def _parameter_string(self):
+        param_string = '_'.join(["{k}-{v}".format(k=key, v=value)
+                                 for key, value in sorted(self.params.items())])
+        return param_string
+
 
 class Structure(object):
     """A class to hold a PDB structure object."""
     def __init__(self, pdbfile, pdbname='pdb_file'):
         #create pdb parser, get structure.
-        parser = Bio.PDB.PDBParser()
+        parser = PDBParser()
         #Get Bio.PDB structure
         self._pdbfile = pdbfile
         self.structure = parser.get_structure(pdbname, self.pdb_file())
@@ -211,7 +241,7 @@ class Chain(object):
     def secondary_structure(self, numeric_ss_code=False):
         '''Use DSSP to calculate secondary structure elements.
         Return a dictionary with secondary structure assignment (value)
-        for each residue (key) with the chain.
+        for each residue (key) within the chain.
         Secondary structure assignment notation follows that of the DSSP program.
         The DSSP codes for secondary structure used here are:
             =====     ====
@@ -302,7 +332,8 @@ class Chain(object):
             results[residue] = pdbtools.map_function(self, method, data,
                                                      residue_map[residue],
                                                      ref=pdbnum_to_ref)
-        return results
+        params = {'radius':radius, 'selector': selector}
+        return DataMap(results, chain=self, params=params)
 
     def write_to_atom(self, data, output, sep=','):
         """Write score for each atom in a structure to a file, based on

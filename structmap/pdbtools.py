@@ -195,7 +195,7 @@ def _default_mapping(_chain, data, residues, ref):
     return average
 
 def _snp_mapping(_chain, data, residues, ref):
-    """"Calculate the number of SNPs over selected residues.
+    """"Calculate the percentage of SNPs over selected residues.
     Data is a list of residues that contain SNPs.
     """
     #filter list of residues based on those that are mapped to reference seq
@@ -207,13 +207,13 @@ def _snp_mapping(_chain, data, residues, ref):
     snp_xor_res = set(data) & set(reference_residues)
     num_snps = len(snp_xor_res)
     try:
-        prop_snps = num_snps / len(reference_residues)
+        perc_snps = num_snps / len(reference_residues) * 100
     #If no residues are mapped onto the reference sequence, return None.
     except ZeroDivisionError:
         return None
     #currently returns the proportion of SNPs within a radius. could
     #change to be the raw number of SNPs.
-    return prop_snps
+    return perc_snps
 
 def _map_amino_acid_scale(chain, data, residues, _ref):
     #Get a list of all amino acids within window, converted to one letter code

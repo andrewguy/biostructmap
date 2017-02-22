@@ -37,6 +37,7 @@ up calculation of Tajima's D, such as removal of non-polymorphic sites and
 memoization of results from previous windows when calculating a sliding window
 value of Tajima's D.
 
+
 """
 from __future__ import absolute_import, division, print_function
 
@@ -192,6 +193,7 @@ class Chain(object):
             self.sequence = pdbtools.get_pdb_seq_from_atom(chain)
             self._parent.parent().sequences[self.get_id()] = self.sequence
         self._nearby = {}
+        self._rsa = {}
 
     def __iter__(self):
         for residue in self.chain:
@@ -228,15 +230,17 @@ class Chain(object):
         """Use Bio.PDB to calculate relative solvent accessibility.
         Return a dictionary with RSA values for each residue.
         """
-        rsa = {}
-        for residue in self.chain:
-            key = (self.get_id(), residue.get_id())
-            if key in self.dssp:
-                try:
-                    rsa[key[1][1]] = float(self.dssp[key][3])
-                except ValueError:
-                    rsa[key[1][1]] = None
-        return rsa
+        if not self._rsa:
+            rsa = {}
+            for residue in self.chain:
+                key = (self.get_id(), residue.get_id())
+                if key in self.dssp:
+                    try:
+                        rsa[key[1][1]] = float(self.dssp[key][3])
+                    except ValueError:
+                        rsa[key[1][1]] = None
+            self._rsa = rsa
+        return self._rsa
 
     def secondary_structure(self, numeric_ss_code=False):
         '''Use DSSP to calculate secondary structure elements.

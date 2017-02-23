@@ -440,6 +440,17 @@ class TestStructmap(TestCase):
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
             result = mapping[residue.get_id()[1]]
             self.assertTrue(isinstance(result, float))
+        #Test that an rsa_range of 0-1 doesn't change results
+        rsa_mapping = chain.map({x:x for x in range(0,25)}, rsa_range=[0,1])
+        self.assertDictEqual(rsa_mapping, mapping)
+
+    def test_rsa_filtering_procedure(self):
+        chain = structmap.Structure(self.test_file)[0]['A']
+        mapping = chain.map([x for x in range(0, 25)])
+        filtered_mapping = chain.map([x for x in range(0,25)], rsa_range=[0.2, 1])
+        self.assertEqual(filtered_mapping[13], None)
+        self.assertEqual(set(mapping.keys()) - set([x for x in filtered_mapping.keys() if filtered_mapping[x] is not None]), set([4, 13, 16]))
+
 
     def test_sequence_alignment_instantiation(self):
         test_align = structmap.SequenceAlignment(self.test_align)

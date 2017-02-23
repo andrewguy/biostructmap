@@ -61,9 +61,10 @@ class DataMap(dict):
     chain object.
     '''
     def __init__(self, *args, **kw):
+        self.chain = kw.pop('chain')
+        self.params = kw.pop('params')
         super(DataMap, self).__init__(*args, **kw)
-        self.chain = kw['chain']
-        self.params = kw['params']
+
 
     def write_data_to_pdb_b_factor(self, default_no_value=0, outdir='', filename=None):
         #Make copy of chain object
@@ -282,7 +283,8 @@ class Chain(object):
         else:
             return ss_dict
 
-    def map(self, data, method='default', ref=None, radius=15, selector='all'):
+    def map(self, data, method='default', ref=None, radius=15, selector='all',
+            rsa_range=None):
         """Perform a mapping of some parameter or function to a pdb structure,
         with the ability to apply the function over a '3D sliding window'.
         The residues within a radius of a central residue are passed to the
@@ -333,8 +335,15 @@ class Chain(object):
         results = {}
         #For each residue within the sequence, apply a function and return result.
         for residue in residue_map:
+            if rsa_range:
+                residues = self._filter_rsa(residue_map[residue], rsa_range)
+                if residue not in residues:
+                    results[residue] = None
+                    continue
+            else:
+                residues = residue_map[residue]
             results[residue] = pdbtools.map_function(self, method, data,
-                                                     residue_map[residue],
+                                                     residues,
                                                      ref=pdbnum_to_ref)
         params = {'radius':radius, 'selector': selector}
         return DataMap(results, chain=self, params=params)
@@ -389,6 +398,17 @@ class Chain(object):
                     data_pt = [str(x) for x in [pdbnum_to_ref[res], data[res]]]
                     line = sep.join(data_pt) + '\n'
                     f.write(line)
+
+    def _filter_rsa(self, _residues, rsa_range):
+        '''
+        Function to remove residues with relative solvent accessibility
+        values outside the requested range.
+        Returns a list of residues.
+        '''
+        rsa = self.rel_solvent_access()
+        residues = [x for x in _residues if rsa_range[0] <= rsa[x]
+                    <= rsa_range[1]]
+        return residues
 
 
 class SequenceAlignment(object):

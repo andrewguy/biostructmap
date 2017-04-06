@@ -21,6 +21,10 @@ Required input parameters include:
 It is possible to write user-defined functions to pass to the Chain.map()
 method following the above format ie. for the incorporation of novel amino
 acid scales.
+
+Note that departures from these input parameter conventions will be noted
+in function docstrings, but otherwise can be assumed to follow the above
+parameter convention.
 """
 from __future__ import absolute_import, division
 
@@ -31,7 +35,10 @@ from .seqtools import _construct_sub_align
 from . import gentests
 
 def _count_residues(_chain, _data, residues, _ref):
-    """Simple function to count the number of residues within a radius"""
+    """Simple function to count the number of residues within a radius.
+
+    Returns:
+        int: Number of residues within a radius"""
     return len(residues)
 
 def _tajimas_d(_chain, alignment, residues, ref):
@@ -39,6 +46,13 @@ def _tajimas_d(_chain, alignment, residues, ref):
     input is Chain object, multiple sequence alignment object,
     list of surrounding residues, and a dictionary giving mapping
     of PDB residue number to codon positions.
+
+    Args:
+        alignment: A multiple sequence alignment object.
+        ref: A dictionary mapping PDB residue number to codon positions
+            relative to the supplied multiple sequence alignment.
+    Returns:
+        float: Tajima's D value. Returns None if Tajima's D is undefined.
     """
     #filter list of residues based on those that have mapped codons:
     residues = [x for x in residues if x in ref]
@@ -52,6 +66,9 @@ def _tajimas_d(_chain, alignment, residues, ref):
 
 def _default_mapping(_chain, data, residues, ref):
     """"Calculate an average of all data points over selected residues.
+
+    Returns:
+        float: Average of all data points within a radius.
     """
     #filter list of residues based on those that are mapped to reference seq
     residues = [x for x in residues if x in ref]
@@ -64,6 +81,12 @@ def _default_mapping(_chain, data, residues, ref):
 def _snp_mapping(_chain, data, residues, ref):
     """"Calculate the percentage of SNPs over selected residues.
     Data is a list of residues that contain SNPs.
+
+    Args:
+        data: List of residues that are polymorphic, aligned to reference seq.
+
+    Returns:
+        float: Proportion of residues within a radius that are polymorphic.
     """
     #filter list of residues based on those that are mapped to reference seq
     residues = [x for x in residues if x in ref]
@@ -85,6 +108,19 @@ def _snp_mapping(_chain, data, residues, ref):
 def _map_amino_acid_scale(chain, data, residues, _ref):
     """
     Compute average value for amino acid propensity scale.
+
+    Args:
+        data (str): A string representing an amino acid propensity scale.
+            Options are:
+            'kd' -  Kyte & Doolittle index of hydrophobicity
+            'Flex' - Flexibility, Normalized flexibility parameters (B-values)
+            'hw' - Hydrophilicity, Hopp & Wood
+            'em' - Surface accessibility, Emini Surface fractional probability
+            'ja' - Surface accessibility, Janin Interior to surface transfer
+                   energy scale
+
+    Returns:
+        float: Average propensity scale score over residues within a radius.
     """
     #Get a list of all amino acids within window, converted to one letter code
     aminoacids = [seq1(chain[int(res)].resname, custom_map=protein_letters_3to1)

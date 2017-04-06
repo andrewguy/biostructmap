@@ -47,10 +47,9 @@ from os import path
 from Bio.PDB import DSSP, PDBIO, PDBParser, Select
 from Bio import AlignIO
 from . import utils, pdbtools, gentests
-from .pdbtools import (_tajimas_d, _default_mapping, _snp_mapping,
-                       _map_amino_acid_scale,
-                       match_pdb_residue_num_to_seq,
-                       ss_lookup_dict)
+from .pdbtools import match_pdb_residue_num_to_seq, ss_lookup_dict
+from .map_functions import (_tajimas_d, _default_mapping, _snp_mapping,
+                            _map_amino_acid_scale)
 from .seqtools import (blast_sequences, align_protein_to_dna,
                        _construct_sub_align)
 

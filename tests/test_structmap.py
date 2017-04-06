@@ -13,7 +13,8 @@ from Bio.Seq import Seq
 from structmap.seqtools import (_sliding_window, _sliding_window_var_sites,
                                _construct_sub_align, align_protein_to_dna)
 from structmap.gentests import _tajimas_d
-from structmap.pdbtools import _euclidean_distance_matrix, _tajimas_d
+from structmap.pdbtools import _euclidean_distance_matrix
+from structmap.map_functions import _tajimas_d
 
 class TestUtils(TestCase):
     def setUp(self):

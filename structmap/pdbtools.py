@@ -5,12 +5,11 @@ Helper module for the structmap package.
 from __future__ import absolute_import, division, print_function
 
 from Bio.SeqIO import PdbIO
-from Bio.SeqUtils import seq1, ProtParamData
+from Bio.SeqUtils import seq1
 from Bio.Data.SCOPData import protein_letters_3to1
 from scipy.spatial import distance
 import numpy as np
-from .seqtools import _construct_sub_align, blast_sequences
-from . import gentests
+from .seqtools import blast_sequences
 
 ss_lookup_dict = {
     'H': 0,
@@ -185,84 +184,3 @@ def match_pdb_residue_num_to_seq(chain, ref=None):
         if i+1 in pdb_to_ref:
             output[pdb_to_ref[i+1]] = pdb_num
     return output
-
-def _count_residues(_chain, _data, residues, _ref):
-    """Simple function to count the number of residues within a radius"""
-    return len(residues)
-
-def _tajimas_d(_chain, alignment, residues, ref):
-    """"Calculate Tajimas D for selected residues within a PDB chain.
-    input is Chain object, multiple sequence alignment object,
-    list of surrounding residues, and a dictionary giving mapping
-    of PDB residue number to codon positions.
-    """
-    #filter list of residues based on those that have mapped codons:
-    residues = [x for x in residues if x in ref]
-    #Get list of codons that correspond to selected residues
-    codons = [ref[res] for res in residues]
-    #Get alignment bp from selected codons
-    sub_align = _construct_sub_align(alignment, codons, fasta=True)
-    #Compute Tajima's D using selected codons.
-    tajd = gentests.tajimas_d(sub_align)
-    return tajd
-
-def _default_mapping(_chain, data, residues, ref):
-    """"Calculate an average of all data points over selected residues.
-    """
-    #filter list of residues based on those that are mapped to reference seq
-    residues = [x for x in residues if x in ref]
-    #Convert PDB residue numbering to reference numbering
-    reference_residues = [ref[res] for res in residues]
-    data_points = [data[res] for res in reference_residues]
-    average = np.mean(data_points)
-    return average
-
-def _snp_mapping(_chain, data, residues, ref):
-    """"Calculate the percentage of SNPs over selected residues.
-    Data is a list of residues that contain SNPs.
-    """
-    #filter list of residues based on those that are mapped to reference seq
-    residues = [x for x in residues if x in ref]
-    #Convert PDB residue numbering to reference numbering
-    reference_residues = [ref[res] for res in residues]
-    #Find the intersection between the residues which contain SNPs and
-    #the selected residues on the Structure
-    snp_xor_res = set(data) & set(reference_residues)
-    num_snps = len(snp_xor_res)
-    try:
-        perc_snps = num_snps / len(reference_residues) * 100
-    #If no residues are mapped onto the reference sequence, return None.
-    except ZeroDivisionError:
-        return None
-    #currently returns the proportion of SNPs within a radius. could
-    #change to be the raw number of SNPs.
-    return perc_snps
-
-def _map_amino_acid_scale(chain, data, residues, _ref):
-    """
-    Compute average value for amino acid propensity scale.
-    """
-    #Get a list of all amino acids within window, converted to one letter code
-    aminoacids = [seq1(chain[int(res)].resname, custom_map=protein_letters_3to1)
-                  for res in residues]
-    scales = {'kd': ProtParamData.kd, # Kyte & Doolittle index of hydrophobicity
-              # Flexibility
-              # Normalized flexibility parameters (B-values),
-              # average (Vihinen et al., 1994)
-              'Flex': ProtParamData.Flex,
-              # Hydrophilicity
-              # Hopp & Wood
-              # Proc. Natl. Acad. Sci. U.S.A. 78:3824-3828(1981).
-              'hw': ProtParamData.hw,
-              # Surface accessibility
-              # 1 Emini Surface fractional probability
-              'em': ProtParamData.em,
-              # 2 Janin Interior to surface transfer energy scale
-              'ja': ProtParamData.ja}
-    if data in scales:
-        scale = scales[data]
-    else:
-        scale = data
-    #Compute mean of scale over all residues within window
-    result = np.mean([scale[aa] for aa in aminoacids])
-    return result

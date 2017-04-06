@@ -11,7 +11,7 @@ from .seqtools import _sliding_window_var_sites
 
 def tajimas_d(alignment, window=None, step=3):
     """
-    Use DendroPy package to calculate Tajimas D.
+    Uses DendroPy package to calculate Tajimas D.
 
     Notes:
         Several optimisations are used to speed up the calculation, including
@@ -57,7 +57,7 @@ def tajimas_d(alignment, window=None, step=3):
 
 def _tajimas_d(alignment):
     """
-    Use DendroPy to calculate tajimas D.
+    Uses DendroPy to calculate tajimas D.
 
     If Tajima's D is undefined (ie. Dendropy Tajima's D method raises a
     ZeroDivisionError), then this method returns None.

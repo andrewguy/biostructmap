@@ -73,6 +73,8 @@ class DataMap(dict):
         #Set all B-factor fields to zeros
         for residue in _chain:
             _data = self.get(residue.get_id()[1], default_no_value)
+            if _data is None:
+                _data = default_no_value
             for atom in residue:
                 atom.set_bfactor(float(_data))
         io = PDBIO()

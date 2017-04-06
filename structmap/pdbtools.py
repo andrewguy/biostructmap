@@ -79,14 +79,10 @@ def nearby(chain, radius=15, selector='all'):
     options include 'CA', 'CB' etc. If an atom is not found within a residue
     object, then method reverts to using 'CA'.
     """
-    #Small hack to allow method to return central atom alone if radius is set
-    #to zero.
-    if radius == 0:
-        radius = 0.01
     #Setup variables
     ref_dict = {}
     euclidean_distance, reference = _euclidean_distance_matrix(chain, selector)
-    within_radius = euclidean_distance < radius
+    within_radius = euclidean_distance <= radius
     near_map = within_radius * reference
     #Iterate over all atoms in Euclidean distance matrix.
     for i, atom in enumerate(near_map):

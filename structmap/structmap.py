@@ -59,18 +59,60 @@ class DataMap(dict):
     A class to hold a mapping of data to some PDB object. Extends the `dict`
     class, adding a few methods to allow correspondence between data and PDB
     chain object.
+
+    Should be called as `DataMap(results, chain=chain, params=params)`,
+    where `results` would be a dictionary of mapped data over a PDB chain for a
+    particular set of parameters.
     '''
     def __init__(self, *args, **kw):
+        """Initialise a DataMap object, which stores mapped to some PDB object
+        as a dictionary, but also provides a link to original chain object
+        and parameters used to generate data.
+
+        Args:
+            *args: Standard dict args
+            **kwargs: Standard dict kwargs. Kwargs `chain` and `params` are
+                reserved for reference to the PDB chain object and analysis
+                parameters respectively, and are required. These are removed
+                from the list of kwargs before passing to dict __init__ method.
+        """
         self.chain = kw.pop('chain')
         self.params = kw.pop('params')
         super(DataMap, self).__init__(*args, **kw)
 
 
-    def write_data_to_pdb_b_factor(self, default_no_value=0, outdir='', filename=None):
-        #Make copy of chain object
+    def write_data_to_pdb_b_factor(self, default_no_value=0, outdir='',
+                                   filename=None):
+        """Write mapped data to PDB B-factor column, and save as a PDB file.
+
+        This method allows for data visualisation over the PDB structure
+        using Pymol. In particular, the `spectrum` command in Pymol can color
+        residues according to B-factor values, and it is common practice to
+        store data of interest in the B-factor column of PDB files.
+
+        Args:
+            default_no_value (int, optional): Default value to write to B-factor
+                column if a non-numeric value exists for a particular data point
+                (e.g. a None value). Default value is 0, although this could be
+                altered depending the range of possible data points. For
+                example, you might use a value such as 99 or -99 to indicate a
+                missing data point, and then filter this out when visualising
+                the data in Pymol.
+            outdir (str, optional): Output directory to write PDB file to.
+                Defaults to current directory.
+            filename (str, optional): Output file name. If not provided,
+                this defaults to a sensible description of the data being
+                written, in the form of "pdbid_param1-value1_param2-value2.pdb".
+
+        Returns:
+            None
+        """
+        # Make copy of chain object. This may fail in earlier versions of
+        # Biopython if chain contains disorded residues. We do this so that
+        # we are not overwriting B-factor values in original PDB chain.
         _chain = deepcopy(self.chain)
         _structure = _chain.parent().parent()
-        #Set all B-factor fields to zeros
+        #Set all B-factor fields to zeros/default value
         for residue in _chain:
             _data = self.get(residue.get_id()[1], default_no_value)
             if _data is None:
@@ -79,20 +121,39 @@ class DataMap(dict):
                 atom.set_bfactor(float(_data))
         io = PDBIO()
         io.set_structure(_chain.chain)
+        # Write chain to PDB file
         if filename is None:
             filename = _structure.pdbname + '_' + self._parameter_string() + '.pdb'
         io.save(path.join(outdir, filename))
         return None
 
     def _parameter_string(self):
+        """Create descriptive string from parameter values"""
         param_string = '_'.join(["{k}-{v}".format(k=key, v=value)
                                  for key, value in sorted(self.params.items())])
         return param_string
 
 
 class Structure(object):
-    """A class to hold a PDB structure object."""
+    """A class to hold a PDB structure object.
+
+    Attributes:
+        structure: Underlying Bio.PDB.Structure.Structure object
+        sequences (dict): A dictionary of all protein sequences within
+            structure, accessed by chain id.
+        models (dict): Dictionary of all models within structure, accessed by
+            model id.
+        pdbname (str): A descriptive name for the PDB file.
+    """
     def __init__(self, pdbfile, pdbname='pdb_file'):
+        """Initialise PDB Structure object.
+
+        Args:
+            pdbfile (str/file-object): A filename string or a file-like object
+                that contains a PDB file.
+            pdbname (str): A descriptive name for the PDB file. This is used
+                as part of the default naming options when writing output files.
+        """
         #create pdb parser, get structure.
         parser = PDBParser()
         #Get Bio.PDB structure
@@ -106,17 +167,27 @@ class Structure(object):
         self.pdbname = pdbname
 
     def __iter__(self):
+        """Iterate over all models within structure"""
         for key in sorted(self.models):
             yield self.models[key]
 
     def __getitem__(self, key):
+        """Get a model from structure"""
         return self.models[key]
 
     def pdb_file(self):
         '''
         Return the PDB file object, which can either be a string, or a file-like
-        object. If it is a file-like object, sets read point to start of the
-        file or stream.
+        object.
+
+        Notes:
+            If it is a file-like object, sets read point to start of the
+            file or stream. This enables us to perform analysis on PDB files
+            downloaded from RCSB and stored in memory (as a StringIO object).
+
+        Returns:
+            str/file object: Either a string representing a filename or a file
+                object with read point set to the start of the file or stream.
         '''
         if not isinstance(self._pdbfile, str):
             self._pdbfile.seek(0)
@@ -125,7 +196,9 @@ class Structure(object):
     def map(self, data, method='default', ref=None, radius=15, selector='all'):
         """Function which performs a mapping of some parameter or function to
         a pdb structure, with the ability to apply the function over a
-        '3D sliding window'. The residues within a radius of a central
+        '3D sliding window'.
+
+        The residues within a radius of a central
         residue are passed to the function, which computes an output value for
         the central residue. This is performed for each residue in the
         structure.
@@ -136,12 +209,27 @@ class Structure(object):
                 unique_id = (model.get_id(), chain.get_id())
                 output[unique_id] = chain.map(data, method=method, ref=ref,
                                               radius=radius, selector=selector)
-        return output
+        return output #TODO Update this function to be more useful. Need to pass chain specific data most of the time.
 
 
 class Model(object):
-    """A class to hold a PDB model object. """
+    """A class to hold a PDB model object.
+
+    Attributes:
+        model: Underlying Bio.PDB.Model.Model object
+        dssp (dict): DSSP results for the model, ONLY IF model is the first in
+            PDB file. Otherwise set to an empty dict. This is because the DSSP
+            program will only read the first model in a PDB file.
+        chains (dict): Dictionary of all chains within model, accessed by chain
+            id.
+    """
     def __init__(self, structure, model):
+        """Initialise A PDB Model object.
+
+        Args:
+            structure (structmap.Structure): Parent structure object.
+            model (Bio.PDB.Model.Model): Bio.PDB Model object.
+        """
         self._id = model.get_id()
         self.model = model
         self._parent = structure
@@ -165,10 +253,12 @@ class Model(object):
                        chain in self.model}
 
     def __iter__(self):
+        """Iterate over all chains in model"""
         for key in sorted(self.chains):
             yield self.chains[key]
 
     def __getitem__(self, key):
+        """Get selected chain"""
         return self.chains[key]
 
     def parent(self):
@@ -181,8 +271,24 @@ class Model(object):
 
 
 class Chain(object):
-    """A class to hold a PDB chain object."""
+    """A class to hold a PDB chain object.
+
+    Attributes:
+        chain: Underlying Bio.PDB.Chain.Chain object
+        dssp (dict): DSSP results for the parent model, ONLY IF model is the
+            first in PDB file. Otherwise set to an empty dict. This is because
+            the DSSP program will only read the first model in a PDB file.
+        sequence (str): Chain protein sequence. Extracted from PDB file header
+            if present, otherwise constructed from PDB atom records for that
+            chain.
+    """
     def __init__(self, model, chain):
+        """Initialise A PDB Chain object.
+
+        Args:
+            model (structmap.Model): Parent Model object.
+            chain (Bio.PDB.Chain.Chain): Bio.PDB Chain object.
+        """
         self._id = chain.get_id()
         self.chain = chain
         self._parent = model
@@ -199,10 +305,12 @@ class Chain(object):
         self._rsa = {}
 
     def __iter__(self):
+        """Iterate over all residues in the chain"""
         for residue in self.chain:
             yield residue
 
     def __getitem__(self, key):
+        """Get residue within chain"""
         return self.chain[key]
 
     def parent(self):
@@ -215,12 +323,20 @@ class Chain(object):
 
     def nearby(self, radius=15, atom='all'):
         """Take a Bio.PDB chain object, and find all residues within a radius of
-        a given residue. Return a dictionary containing nearby residues for each
-        residue in the chain.
-        Optional parameter is the atom with which to compute distance.
-        By default this is 'all', which gets all non-heterologous atoms.
-        Other potential options include 'CA', 'CB' etc. If an atom is not found
-        within a residue object, then method reverts to using 'CA'.
+        a given residue.
+
+        Args:
+            radius (int/float): Radius within which to find nearby residues for
+                each residue in the chain.
+            atom (str): The atom with which to compute distances. By default
+                this is 'all', which gets all non-heterologous atoms. Other
+                potential options include 'CA', 'CB' etc. If an atom is not
+                found within a residue object, then method reverts to using
+                'CA'.
+
+        Returns:
+            dict: A dictionary containing a list of nearby residues for each
+                residue in the chain.
         """
         param_key = (radius, atom)
         #Calculate distance matrix and store it for retrieval in future queries.
@@ -230,8 +346,10 @@ class Chain(object):
         return self._nearby[param_key]
 
     def rel_solvent_access(self):
-        """Use Bio.PDB to calculate relative solvent accessibility.
-        Return a dictionary with RSA values for each residue.
+        """Use Bio.PDB DSSP tools to calculate relative solvent accessibility.
+
+        Returns:
+            dict: A dictionary with RSA values for each residue (key).
         """
         if not self._rsa:
             rsa = {}
@@ -247,36 +365,47 @@ class Chain(object):
 
     def secondary_structure(self, numeric_ss_code=False):
         '''Use DSSP to calculate secondary structure elements.
-        Return a dictionary with secondary structure assignment (value)
-        for each residue (key) within the chain.
-        Secondary structure assignment notation follows that of the DSSP program.
-        The DSSP codes for secondary structure used here are:
-            =====     ====
-            Code      Structure
-            =====     ====
-             H        Alpha helix (4-12)
-             B        Isolated beta-bridge residue
-             E        Strand
-             G        3-10 helix
-             I        Pi helix
-             T        Turn
-             S        Bend
-             -       None
-            =====     ====
-        If kwarg `numeric_ss_code` == True, then secondary structure values
-        will be returned as integers according to the following lookup table:
-        {
-        'H': 0,
-        'B': 1,
-        'E': 2,
-        'G': 3,
-        'I': 4,
-        'T': 5,
-        'S': 6,
-        '-', 7
-        }
-        These are provided in pdbtools.ss_lookup_dict, as well as the reverse
-        lookups (i.e. 0: 'H').
+
+        Notes:
+            Secondary structure assignment notation follows that of the DSSP
+            program.
+
+            The DSSP codes for secondary structure used here are:
+                =====     ====
+                Code      Structure
+                =====     ====
+                 H        Alpha helix (4-12)
+                 B        Isolated beta-bridge residue
+                 E        Strand
+                 G        3-10 helix
+                 I        Pi helix
+                 T        Turn
+                 S        Bend
+                 -       None
+                =====     ====
+            If kwarg `numeric_ss_code` == True, then secondary structure values
+            will be returned as integers according to the following lookup
+            table:
+            {
+            'H': 0,
+            'B': 1,
+            'E': 2,
+            'G': 3,
+            'I': 4,
+            'T': 5,
+            'S': 6,
+            '-', 7
+            }
+            These are provided in pdbtools.ss_lookup_dict, as well as the
+            reverse lookups (i.e. {0: 'H', ...}).
+
+        Args:
+            numeric_ss_code (bool): Return secondary structure elements as a
+                numeric lookup code if True. Set to False by default.
+
+        Returns:
+            dict: A dictionary with secondary structure assignment (value)
+                for each residue (key) within the chain.
         '''
         keys = [x for x in self.dssp.keys() if x[0] == self._id]
         ss_dict = {x[1][1]: self.dssp.property_dict[x][2] for x in keys}
@@ -289,10 +418,46 @@ class Chain(object):
             rsa_range=None):
         """Perform a mapping of some parameter or function to a pdb structure,
         with the ability to apply the function over a '3D sliding window'.
+
         The residues within a radius of a central residue are passed to the
-        function, which computes an output value for the central residue.
-        This is performed for each residue in the structure.
-        For tajimasd, reference sequence is a genomic sequence.
+        mapping function, which computes an output value for the central
+        residue. This is performed for each residue in the structure.
+        For calculation of Tajima's D, reference sequence is a genomic sequence.
+
+        Args:
+            data (dict/object): Generally a dictionary containing data to
+                to be mapped over structure. The exact form for this data
+                depends on the function being used to map data - each mapping
+                function is passed this data object.
+            method (str): A string representing a method for mapping data.
+                Internally, these strings are keys for a dictionary of
+                functions, and these can be extended with custom user-provided
+                functions if desired.
+            ref (str): A reference protein sequence. For calculation of Tajima's
+                D, this is a reference genomic sequence. Data to be mapped
+                should be aligned/referenced according to this reference
+                sequence.
+            radius (int/float, optional): The radius (Angstrom) over which to
+                select nearby residues for inclusion within each 3D window.
+                This defaults to 15 Angstrom, which is the typical maximum
+                dimension for an antibody epitope.
+            selector (str, optional): A string indicating the atom with which
+                to compute distances between residues. By default this is 'all',
+                which gets all non-heterologous atoms. Other potential options
+                include 'CA', 'CB' etc. If an atom is not found within a residue
+                object, then the selection method reverts to using 'CA'.
+            rsa_range (tuple, optional): A tuple giving (minimum, maximum)
+                values of relative solvent accessibility with which to filter
+                all residues on (ie. map method will ignore all residues
+                outside this range). This is useful when wanting to examine only
+                surface exposed residues.
+
+        Returns:
+            structmap.DataMap: A dictionary-like object which contains mapped
+                values for each residue (key). This object extends the standard
+                dict type, adding methods to allow writing of data to PDB
+                B-factor columns for easy viewing using Pymol or other similar
+                programs.
         """
         #Note: This method attempts to deal with 3 different ways of identifying
         #residue position: i) Within a PDB file, residues are labelled with a
@@ -344,15 +509,24 @@ class Chain(object):
                     continue
             else:
                 residues = residue_map[residue]
-            results[residue] = pdbtools.map_function(self, method, data,
-                                                     residues,
-                                                     ref=pdbnum_to_ref)
+            results[residue] = method(self, data, residues, ref=pdbnum_to_ref)
         params = {'radius':radius, 'selector': selector}
         return DataMap(results, chain=self, params=params)
 
-    def write_to_atom(self, data, output, sep=','):
+    def write_to_atom(self, data, output, sep=','): #TODO move to DataMap object
         """Write score for each atom in a structure to a file, based on
         a data dictionary mapping output score to residue number.
+
+        Each line of the output file contains an entry for a single atom.
+
+        Args:
+            data (dict): A dictionary of output score for each residue. Can also
+                be structmap.DataMap object, which extends the dict class.
+            output (str): Output file name/path.
+            sep (str, optional): Seperator between residue and data.
+                Defaults to `,`.
+        Returns:
+            None
         """
         #For each atom in the structure, write an output score based on the data
         #given, presuming (key,value) in a dictionary with key corresponding to
@@ -364,17 +538,38 @@ class Chain(object):
                     data_pt = [str(x) for x in [atom.serial_number, data[res]]]
                     line = sep.join(data_pt) + '\n'
                     f.write(line)
+        return None
 
     def residue_to_atom_map(self):
-        """Return a map of residue number (per numbering in PDB file)
-        to atom number for this chain
+        """Return a map of residue number (per numbering in PDB file) to atom
+        number for this chain.
+
+        Returns:
+            dict: A dictionary mapping residue number (key) to a tuple (value)
+                containing all atom serial numbers for that residue.
         """
         mapping = {residue.id[1]:tuple(atom.serial_number for atom in residue) for residue in self.chain}
         return mapping
 
     def write_to_residue(self, data, output, sep=',', ref=None):
-        """Write score for each residue in a structure to a file, based on a
-        dictionary mapping output score to residue number.
+        """Write score for each residue in a structure to a file, based on
+        a data dictionary mapping output score to residue number.
+
+        Each line of the output file contains an entry for a single residue.
+        This method additionally allows for scores to be aligned to a reference
+        sequence for easy comparison with other metrics or a conventional
+        reference sequence.
+
+        Args:
+            data (dict): A dictionary of output score for each residue. Can also
+                be structmap.DataMap object, which extends the dict class.
+            output (str): Output file name/path.
+            sep (str, optional): Seperator between residue and data.
+                Defaults to `,`.
+            ref (str, optional): A reference sequence with which to align
+                data to.
+        Returns:
+            None
         """
         if ref is None:
             with open(output, 'w') as f:
@@ -400,29 +595,57 @@ class Chain(object):
                     data_pt = [str(x) for x in [pdbnum_to_ref[res], data[res]]]
                     line = sep.join(data_pt) + '\n'
                     f.write(line)
+        return None
 
-    def _filter_rsa(self, _residues, rsa_range):
+    def _filter_rsa(self, residues, rsa_range):
         '''
         Function to remove residues with relative solvent accessibility
         values outside the requested range.
-        Returns a list of residues.
+
+        Args:
+            residues (list): List of residues to filter.
+            rsa_range (list/tuple): A tuple/list of the form (min, max),
+                that gives the minimum and maximum relative solvent
+                accessibility values with which to filter residues. Note that
+                these values should be between 0 and 1.
+
+        Returns:
+            list: A list of residues (int) that have a relative solvent
+                accessibility within the required range (inclusive).
         '''
         rsa = self.rel_solvent_access()
-        residues = [x for x in _residues if rsa_range[0] <= rsa[x]
-                    <= rsa_range[1]]
-        return residues
+        filtered_residues = [x for x in residues if rsa_range[0] <= rsa[x]
+                             <= rsa_range[1]]
+        return filtered_residues
 
 
 class SequenceAlignment(object):
     """A class to hold a multiple sequence alignment object.
-    Methods are:
-        translate - translate to a protein sequence
-        tajimas_d - calculate Tajima's D over a sliding window, or for the
-        entire sequence.
+
+    This class is a basic wrapper for a Bio.Align.MultipleSequenceAlignment
+    object, and allows calculation of Tajima's D over selected codons, as well
+    as methods for slightly more efficient selection of sub-alignments based on
+    selected codons, which may or may not be continuous.
+
+    Attributes:
+        alignment (Bio.Align.MultipleSequenceAlignment): Multiple Sequence
+            Alignment object from Bio.Align.MultipleSequenceAlignment.
+        alignment_fasta (str): MSA in fasta format #TODO (currently unused)
     """
     def __init__(self, alignfile, file_format='fasta'):
+        """Initialises a SequenceAlignment object with a multiple sequence
+        alignment file or file-like object.
+
+        Args:
+            alignfile (str/file handle): A multiple sequence alignment
+                file path (str) or file-like object. This is the same as the
+                Bio.AlignIO.read(...) inputs.
+            file_format (str, optional): File format that the sequence
+                alignment is stored as. This is the same as the arguments for
+                Bio.AlignIO.read(...), and defaults to 'fasta'.
+        """
         self.alignment = AlignIO.read(alignfile, file_format)
-        self.alignment_fasta = self.alignment.format('fasta')
+        self.alignment_fasta = self.alignment.format('fasta') #TODO Currently unused?
         self._alignment_position_dict = None
         self._isolate_ids = None
 
@@ -430,6 +653,21 @@ class SequenceAlignment(object):
         return self.alignment[key]
 
     def get_alignment_position_dict(self):
+        """Returns a dictionary with single base pair alignments for each
+        position in the multiple sequence alignment.
+
+        This method utilises memoization to speed up multiple slicing operations
+        on MultipleSeqAlignment objects, which can be expensive. This is
+        patricularly useful when constructing a sub-alignment representing
+        selected residues in a protein structure, as we would typically have
+        to make many such sub-alignments when iterating over all residues within
+        a structure.
+
+        Returns:
+            dict: A dictionary containing Bio.Align.MultipleSeqAlignment objects
+                with a single base pair represented for each indexed position.
+                Dictionary is of the form {int: MultipleSeqAlignment, ...}.
+        """
         if self._alignment_position_dict is None:
             self._alignment_position_dict = {}
             for i in range(len(self.alignment[0])):
@@ -438,6 +676,12 @@ class SequenceAlignment(object):
         return self._alignment_position_dict
 
     def get_isolate_ids(self):
+        """Returns the isolate IDs for each sequence in the multiple sequence
+        alignment.
+
+        Returns:
+            list: List of isolates/strains as strings.
+        """
         if self._isolate_ids is None:
             self._isolate_ids = [seq.id for seq in self.alignment]
         return self._isolate_ids
@@ -454,13 +698,32 @@ class SequenceAlignment(object):
         If a window size is given, then the function returns a dictionary
         of Tajima's D values over a sliding window.
 
-        :param window: The size of the sliding window over which Tajima's D is
-        calculated
-        :type window: int
-        :param step: Step size for sliding window calculation
-        :type step: int
-        :returns: *key: window midpoint
-                  *value: Tajima's D value for window
+        Note:
+
+        Args:
+            window (int, optional): The size of the sliding window over which
+                Tajima's D is calculated. Default is None, in which case a
+                single Tajima's D value is calculated for the multiple sequence
+                alignment.
+            step (int, optional): Step size for sliding window calculation.
+                Default step size of 3 (ie. one codon).
+            protein_ref (str, optional): A reference protein sequence which is
+                used to optionally determine the protein coding region of the
+                genome, and only calculate Tajima's D over these regions.
+            genome_ref (str/Bio.Seq.Seq, optional): A genome reference sequence
+                that is aligned to the multiple sequence alignment. Required if
+                providing a protein reference sequence.
+            output_protein_num (bool, optional): If set to True, will also
+                return Tajima's D values for each position in the protein
+                reference sequence.
+        Returns:
+            float/dict: If window parameter is None, returns a single value for
+                Tajima's D. Otherwise a dict of genome window midpoint to
+                calculated Tajima's D values is returned
+            list (optional): Map of protein residue number to calculated
+                Tajima's D values as tuple pairs of the form (residue, TajimasD)
+                This is not returned as a dictionary as some residues may have
+                multiple mapped Tajima's D value depending on step size.
         """
         # If given a protein reference sequence, align genome to reference
         # sequence, and only perform a Tajima's D analysis over the protein

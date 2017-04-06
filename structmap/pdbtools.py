@@ -1,5 +1,6 @@
-"""Helper module for structmap package. Contains a collection of tools
-for analysing a pdb file.
+"""A collection of tools for analysing a pdb file.
+
+Helper module for the structmap package.
 """
 from __future__ import absolute_import, division, print_function
 
@@ -32,13 +33,17 @@ ss_lookup_dict = {
 
 def _euclidean_distance_matrix(chain, selector='all'):
     """Compute the Euclidean distance matrix for all atoms in a pdb chain.
-    Return the euclidean distance matrix and a reference list of all atoms
-    in the model (positionally matched to the euclidean matrix).
-    Optional parameter is the atom in each residue with which to compute a
-    distance matrix. The default setting is 'all', which gets all
-    non-heterologous atoms. Other potential options include 'CA', 'CB' etc.
-    If an atom is not found within a residue object, then method reverts to
-    using 'CA'.
+
+    Args:
+        chain (Chain): Bio.PDB Chain object.
+        selector (str): The atom in each residue with which to compute
+            distances. The default setting is 'all', which gets all
+            non-heterologous atoms. Other potential options include 'CA', 'CB'
+            etc. If an atom is not found within a residue object, then method
+            reverts to using 'CA'.
+    Returns:
+        np.array: A euclidean distance matrix.
+        np.array: A reference list of all atoms in the model (positionally matched to the euclidean matrix).
     """
     reference = []
     coords = []
@@ -71,13 +76,21 @@ def _euclidean_distance_matrix(chain, selector='all'):
 
 def nearby(chain, radius=15, selector='all'):
     """
-    Take a Bio.PDB chain object, and find all residues within a radius of a
-    given residue. Return a dictionary containing nearby residues for each
-    residue in the chain.
-    Optional parameter is the atom with which to compute distance. By default
-    this is 'all', which gets all non-heterologous atoms. Other potential
-    options include 'CA', 'CB' etc. If an atom is not found within a residue
-    object, then method reverts to using 'CA'.
+    Takes a Bio.PDB chain object, and find all residues within a radius of a
+    given residue.
+
+    Args:
+        chain (Chain): Bio.PDB Chain object.
+        radius (float/int): The radius (Angstrom) over which to select nearby
+            residues
+        selector (str): The atom in each residue with which to compute
+            distances. The default setting is 'all', which gets all
+            non-heterologous atoms. Other potential options include 'CA', 'CB'
+            etc. If an atom is not found within a residue object, then method
+            reverts to using 'CA'.
+    Returns:
+        dict: A dictionary containing nearby residues for each
+            residue in the chain.
     """
     #Setup variables
     ref_dict = {}
@@ -100,7 +113,13 @@ def nearby(chain, radius=15, selector='all'):
 def get_pdb_seq(filename):
     """
     Get a protein sequence from a PDB file.
+
     Will return multiple sequences if PDB file contains several chains.
+
+    Args:
+        filename (str/filehandle): A PDB filename or file-like object.
+    Returns:
+        dict: Protein sequences (str) accessed by chain id.
     """
     #Open PDB file and get sequence data
     try:
@@ -120,8 +139,14 @@ def get_pdb_seq(filename):
 def get_pdb_seq_from_atom(chain):
     """
     Get a protein sequence from chain atoms in a PDB file.
-    Input is a Bio.PDB chain object.
-    Output is a protein sequence string.
+
+    This is used as a 'last resort' when sequence is not available in PDB
+    headers.
+
+    Args:
+        chain: A Bio.PDB chain object.
+    Returns:
+        str: Protein sequence.
     """
     seq_dict = {}
     for residue in chain.get_residues():
@@ -134,9 +159,16 @@ def get_pdb_seq_from_atom(chain):
 def match_pdb_residue_num_to_seq(chain, ref=None):
     """Match PDB residue numbering (as given in PDB file) to
     a reference sequence (can be pdb sequence) numbered by index.
+
     Reference sequence is 1-indexed (and is indexed as such in output).
-    Output is a dictionary mapping reference sequence index (key) to
-    residue numbering as given in the PDB file (value).
+
+    Args:
+        chain: A Bio.PDB chain object.
+        ref (str): A reference protein sequence. Defaults to protein sequence
+            given in PDB file.
+    Returns:
+        dict: A dictionary mapping reference sequence index (key) to
+            residue numbering as given in the PDB file (value).
     """
     if ref is None:
         ref = chain.sequence
@@ -152,11 +184,6 @@ def match_pdb_residue_num_to_seq(chain, ref=None):
     for i, pdb_num in enumerate(pdb_numbering):
         if i+1 in pdb_to_ref:
             output[pdb_to_ref[i+1]] = pdb_num
-    return output
-
-def map_function(chain, method, data, residues, ref=None):
-    """Map a function onto PDB residues, return an output value"""
-    output = method(chain, data, residues, ref)
     return output
 
 def _count_residues(_chain, _data, residues, _ref):
@@ -212,6 +239,9 @@ def _snp_mapping(_chain, data, residues, ref):
     return perc_snps
 
 def _map_amino_acid_scale(chain, data, residues, _ref):
+    """
+    Compute average value for amino acid propensity scale.
+    """
     #Get a list of all amino acids within window, converted to one letter code
     aminoacids = [seq1(chain[int(res)].resname, custom_map=protein_letters_3to1)
                   for res in residues]

@@ -190,15 +190,23 @@ def prot_to_dna_position(dna_indices, prot_indices):
 def align_protein_to_dna(prot_seq, dna_seq):
     """
     Aligns a protein sequence to a genomic sequence. Takes into consideration
-    introns frameshifts and reverse-sense translation.
+    introns, frameshifts and reverse-sense translation.
 
-    Note: This method uses the external program Exonerate:
-          http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate
-          This needs to be installed in the users Path.
+    Note:
+        This method uses the external program Exonerate:
+        http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate
+        This needs to be installed in the users PATH.
 
-    Output from align_protein_to_dna is a dictionary mapping protein residue
-    numbers to codon positions: {3:(6,7,8), 4:(9,10,11), ...}
+    Args:
+        prot_seq (str): A protein sequence.
+        dna_seq (str): A genomic or coding DNA sequence
+
+    Returns:
+        dict: A dictionary mapping protein residue numbers to codon positions:
+            e.g. {3:(6,7,8), 4:(9,10,11), ...}
     """
+    #TODO Use Biopython exonerate parser. Didn't realise that existed when
+    # I wrote this parser.
     with tempfile.NamedTemporaryFile(mode='w') as protein_seq_file, \
          tempfile.NamedTemporaryFile(mode='w') as dna_seq_file:
         protein_seq_file.write(">\n" + prot_seq + "\n")
@@ -260,7 +268,7 @@ def align_protein_to_dna(prot_seq, dna_seq):
                 raise UserWarning("Match in vulgar output is possibly " +
                                   "incorrect - number of protein residues " +
                                   "should be the number of bases divided by 3")
-            for i in range(count2):
+            for _ in range(count2):
                 dna_count = step(dna_count, 1)
                 codon.append(dna_count)
                 if len(codon) == 3:
@@ -292,7 +300,7 @@ def align_protein_to_dna(prot_seq, dna_seq):
                                   "exonerate output over intron.")
             dna_count = step(dna_count, count2)
         if modifier == 'S':
-            for i in range(count2):
+            for _ in range(count2):
                 dna_count = step(dna_count, 1)
                 codon.append(dna_count)
                 if len(codon) == 3:

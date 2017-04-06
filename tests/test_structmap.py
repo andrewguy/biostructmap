@@ -118,15 +118,6 @@ class TestPdbtools(TestCase):
         with self.assertRaises(IOError):
             pdbtools.get_pdb_seq('not_a_file')
 
-    def test_map_function(self):
-        data = []
-        residues = 'a dummy object'
-        ref = {1: "Another dummy object"}
-        def dummy_method(chain, data, residues, ref):
-            return (chain, data, residues, ref)
-        output = pdbtools.map_function(self.test_chain, dummy_method, data, residues, ref)
-        self.assertEqual(output, (self.test_chain, data, residues, ref))
-
     def test_tajimas_d_on_structure(self):
         #test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
         test_sequence_alignment = structmap.SequenceAlignment('./tests/msa/msa_test_86-104', 'fasta')

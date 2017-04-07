@@ -1,39 +1,18 @@
 from __future__ import absolute_import, division, print_function
 
-from unittest import TestCase
-from copy import copy
-import numpy as np
-import pickle
 import io
+from unittest import TestCase
+import numpy as np
 
-from structmap import utils, structmap, seqtools, gentests, pdbtools
 import Bio.PDB
 from Bio import AlignIO
 from Bio.Seq import Seq
+from structmap import structmap, seqtools, gentests, pdbtools
 from structmap.seqtools import (_sliding_window, _sliding_window_var_sites,
-                               _construct_sub_align, align_protein_to_dna)
+                               _construct_sub_align)
 from structmap.gentests import _tajimas_d
 from structmap.pdbtools import _euclidean_distance_matrix
 from structmap.map_functions import _tajimas_d
-
-class TestUtils(TestCase):
-    def setUp(self):
-        self.test_sequence = Seq("ATCTCTACTGCAT")
-        self.test_string = "ATCTCTACTGCAT"
-
-    def tearDown(self):
-        pass
-
-    def test_is_unambig_dna(self):
-        self.assertTrue(structmap.utils.is_unambig_dna("ACTGTCTGTCAT"))
-        #Test casing
-        self.assertTrue(structmap.utils.is_unambig_dna("actGTCTGtcaT"))
-        self.assertFalse(structmap.utils.is_unambig_dna("ACTGMYTGTCAT"))
-        self.assertFalse(structmap.utils.is_unambig_dna("ACTG ACTC"))
-        self.assertFalse(structmap.utils.is_unambig_dna("ACTG.ACTC"))
-
-    def test_to_string(self):
-        self.assertEqual(utils.to_string(self.test_sequence),self.test_string)
 
 
 class TestPdbtools(TestCase):
@@ -46,7 +25,7 @@ class TestPdbtools(TestCase):
         self.test_chain = self.test_structure[0]['A']
 
     def test_euclidean_matrix_calculation(self):
-        mat = _euclidean_distance_matrix(self.test_chain,selector="all")
+        mat = _euclidean_distance_matrix(self.test_chain, selector="all")
         length_to_match = 4908
         self.assertEqual(len(mat[0]), length_to_match)
         self.assertEqual(len(mat[1]), length_to_match)
@@ -55,7 +34,7 @@ class TestPdbtools(TestCase):
         self.assertTrue(check_diagonal)
 
     def test_euclidean_matrix_calculation_with_CA(self):
-        mat = _euclidean_distance_matrix(self.test_chain,selector="CA")
+        mat = _euclidean_distance_matrix(self.test_chain, selector="CA")
         length_to_match = 583
         self.assertEqual(len(mat[0]), length_to_match)
         self.assertEqual(len(mat[1]), length_to_match)
@@ -64,7 +43,7 @@ class TestPdbtools(TestCase):
         self.assertTrue(check_diagonal)
 
     def test_euclidean_matrix_calculation_with_CB(self):
-        mat = _euclidean_distance_matrix(self.test_chain,selector="CB")
+        mat = _euclidean_distance_matrix(self.test_chain, selector="CB")
         length_to_match = 583
         self.assertEqual(len(mat[0]), length_to_match)
         self.assertEqual(len(mat[1]), length_to_match)
@@ -75,7 +54,6 @@ class TestPdbtools(TestCase):
     def test_nearby_residues_function_with_CA(self):
         radius = 15
         selector = 'CA'
-        length_to_match = 583
         test_residue = 57
         test_residue_to_match = [48,  49,  50,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,
                                  62,  63,  64,  65,  66,  98,  99, 101, 102, 103, 104, 116, 117,
@@ -88,7 +66,6 @@ class TestPdbtools(TestCase):
     def test_nearby_residues_function_with_all_atoms(self):
         radius = 15
         selector = 'all'
-        length_to_match = 583
         test_residue = 57
         test_residue_to_match = [8, 11, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
                                  56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
@@ -357,7 +334,6 @@ class TestStructmap(TestCase):
     def test_structure_map_function(self):
         structure = structmap.Structure(self.test_file)
         dummy_data = []
-        residues = [1,2,3,4]
         def dummy_method(chain, data, residues, ref):
             return (chain, data, residues, ref)
         results = structure.map(dummy_data, dummy_method, ref=None, radius=15, selector='all')

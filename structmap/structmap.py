@@ -44,10 +44,10 @@ from __future__ import absolute_import, division, print_function
 from copy import deepcopy
 import tempfile
 from os import path
-from Bio.PDB import DSSP, PDBIO, PDBParser, Select
+from Bio.PDB import DSSP, PDBIO, PDBParser
 from Bio import AlignIO
-from . import utils, pdbtools, gentests
-from .pdbtools import match_pdb_residue_num_to_seq, ss_lookup_dict
+from . import pdbtools, gentests
+from .pdbtools import match_pdb_residue_num_to_seq, SS_LOOKUP_DICT
 from .map_functions import (_tajimas_d, _default_mapping, _snp_mapping,
                             _map_amino_acid_scale)
 from .seqtools import (blast_sequences, align_protein_to_dna,
@@ -118,12 +118,12 @@ class DataMap(dict):
                 _data = default_no_value
             for atom in residue:
                 atom.set_bfactor(float(_data))
-        io = PDBIO()
-        io.set_structure(_chain.chain)
+        pdb_io = PDBIO()
+        pdb_io.set_structure(_chain.chain)
         # Write chain to PDB file
         if filename is None:
             filename = _structure.pdbname + '_' + self._parameter_string() + '.pdb'
-        io.save(path.join(outdir, filename))
+        pdb_io.save(path.join(outdir, filename))
         return None
 
     def _parameter_string(self):
@@ -208,7 +208,9 @@ class Structure(object):
                 unique_id = (model.get_id(), chain.get_id())
                 output[unique_id] = chain.map(data, method=method, ref=ref,
                                               radius=radius, selector=selector)
-        return output #TODO Update this function to be more useful. Need to pass chain specific data most of the time.
+        return output
+        #TODO Update this function to be more useful.
+        #Need to pass chain specific data most of the time.
 
 
 class Model(object):
@@ -395,7 +397,7 @@ class Chain(object):
             'S': 6,
             '-', 7
             }
-            These are provided in pdbtools.ss_lookup_dict, as well as the
+            These are provided in pdbtools.SS_LOOKUP_DICT, as well as the
             reverse lookups (i.e. {0: 'H', ...}).
 
         Args:
@@ -409,7 +411,7 @@ class Chain(object):
         keys = [x for x in self.dssp.keys() if x[0] == self._id]
         ss_dict = {x[1][1]: self.dssp.property_dict[x][2] for x in keys}
         if numeric_ss_code:
-            return {key:ss_lookup_dict[item] for key, item in ss_dict.items()}
+            return {key:SS_LOOKUP_DICT[item] for key, item in ss_dict.items()}
         else:
             return ss_dict
 
@@ -547,7 +549,8 @@ class Chain(object):
             dict: A dictionary mapping residue number (key) to a tuple (value)
                 containing all atom serial numbers for that residue.
         """
-        mapping = {residue.id[1]:tuple(atom.serial_number for atom in residue) for residue in self.chain}
+        mapping = {residue.id[1]:tuple(atom.serial_number for atom in residue)
+                   for residue in self.chain}
         return mapping
 
     def write_to_residue(self, data, output, sep=',', ref=None):
@@ -587,7 +590,8 @@ class Chain(object):
                         output = ("Residue {res} in PDB file {pdb} was not"
                                   " matched to reference sequence provided"
                                   " for writing to output file").format(
-                                        res=res, pdb=self.parent().parent().pdbname)
+                                      res=res,
+                                      pdb=self.parent().parent().pdbname)
 
                         print(output)
                         continue
@@ -629,7 +633,6 @@ class SequenceAlignment(object):
     Attributes:
         alignment (Bio.Align.MultipleSequenceAlignment): Multiple Sequence
             Alignment object from Bio.Align.MultipleSequenceAlignment.
-        alignment_fasta (str): MSA in fasta format #TODO (currently unused)
     """
     def __init__(self, alignfile, file_format='fasta'):
         """Initialises a SequenceAlignment object with a multiple sequence
@@ -644,7 +647,6 @@ class SequenceAlignment(object):
                 Bio.AlignIO.read(...), and defaults to 'fasta'.
         """
         self.alignment = AlignIO.read(alignfile, file_format)
-        self.alignment_fasta = self.alignment.format('fasta') #TODO Currently unused?
         self._alignment_position_dict = None
         self._isolate_ids = None
 

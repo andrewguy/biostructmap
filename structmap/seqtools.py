@@ -276,7 +276,7 @@ def align_protein_to_dna(prot_seq, dna_seq):
             exonerate_call.append(threshold)
         alignment = subprocess.check_output(exonerate_call)
     vulgar_re = re.search(r"(?<=vulgar:).*(?=\n)",
-                              alignment.decode("utf-8"))
+                          alignment.decode("utf-8"))
     if not vulgar_re:
         raise UserWarning("Did not find exonerate alignment.")
     vulgar_format = vulgar_re.group(0)

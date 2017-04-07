@@ -11,7 +11,7 @@ from scipy.spatial import distance
 import numpy as np
 from .seqtools import blast_sequences
 
-ss_lookup_dict = {
+SS_LOOKUP_DICT = {
     'H': 0,
     'B': 1,
     'E': 2,
@@ -42,7 +42,8 @@ def _euclidean_distance_matrix(chain, selector='all'):
             reverts to using 'CA'.
     Returns:
         np.array: A euclidean distance matrix.
-        np.array: A reference list of all atoms in the model (positionally matched to the euclidean matrix).
+        np.array: A reference list of all atoms in the model (positionally
+            matched to the euclidean matrix).
     """
     reference = []
     coords = []

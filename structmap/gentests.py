@@ -4,9 +4,10 @@ Part of the StructMap package.
 """
 from __future__ import absolute_import, division, print_function
 
-import dendropy
 from io import StringIO
 from Bio import AlignIO
+import dendropy
+
 from .seqtools import _sliding_window_var_sites
 
 def tajimas_d(alignment, window=None, step=3):

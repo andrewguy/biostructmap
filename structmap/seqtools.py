@@ -12,19 +12,26 @@ from Bio import AlignIO
 from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML
 
-def _sliding_window(seq_align, window, step=3, isfile=True, fasta_out=False):
+def _sliding_window(seq_align, window, step=3, fasta_out=False):
     """
-    Generator function that takes a multiple sequence alignment, and generates a
-    Multiple Sequence Alignment over a sliding window.
+    Generate a Multiple Sequence Alignment over a sliding window.
+
     Input is either filehandle, or Bio.AlignIO multiple sequence alignment
     object.
-    Set isfile=False if dealing with Bio.AlignIO MSA object.
-    Output is either AlignIO object or fasta string.
-    If fasta_out==False, then output will be AlignIO object.
+    Args:
+        seq_align: A multiple sequence alignment. Either a filehandle, or
+            Bio.AlignIO multiple sequence alignment object.
+        window (int): Sliding window width
+        step (int, optional): Step size to increment each window. Default of 3.
+        fasta_out (bool): If True, output will be a fasta formatted string. If
+            False, then output will be an AlignIO object.
+    Yields:
+        str/MultipleSequenceAlignment: The next window in the sliding window
+            series for the original multiple sequence alignment.
     """
-    if isfile:
+    try:
         alignments = AlignIO.read(seq_align, 'fasta')
-    else:
+    except AttributeError:
         alignments = seq_align
     #Length of alignments
     length = len(alignments[0])
@@ -34,16 +41,30 @@ def _sliding_window(seq_align, window, step=3, isfile=True, fasta_out=False):
             alignment = alignment.format('fasta')
         yield alignment
 
-def _sliding_window_var_sites(seq_align, window, step=3, isfile=True):
+def _sliding_window_var_sites(seq_align, window, step=3):
     """
-    Generator function that takes a multiple sequence alignment,
-    and generates a Multiple Sequence Alignment over a sliding window, only
+    Generate a Multiple Sequence Alignment over a sliding window, only
     including polymorphic sites in the alignment.
-    Output is Bio.AlignIO alignment object.
+
+    Notes:
+        Returns an empty MultipleSequenceAlignment object if no polymorphic
+        sites are found within the window.
+
+    Args:
+        seq_align: A multiple sequence alignment. Either a filehandle, or
+            Bio.AlignIO multiple sequence alignment object.
+        window (int): Sliding window width
+        step (int, optional): Step size to increment each window. Default of 3.
+        fasta_out (bool): If True, output will be a fasta formatted string. If
+            False, then output will be an AlignIO object.
+    Yields:
+        MultipleSequenceAlignment: The next window in the sliding window
+            series for the original multiple sequence alignment, with
+            only polymorphic sites displayed.
     """
-    if isfile:
+    try:
         alignments = AlignIO.read(seq_align, 'fasta')
-    else:
+    except AttributeError:
         alignments = seq_align
     #Length of alignments
     length = len(alignments[0])
@@ -73,7 +94,15 @@ def _var_site(alignment):
     """
     Take a multiple sequence alignment object and return polymorphic sites in a
     dictionary object.
-    Use this function to simplify the input to a tajima's D calculation.
+
+    This function is used to simplify the input to a tajima's D calculation.
+
+    Args:
+        alignment: A multiple sequence alignment object.
+
+    Returns:
+        dict: A dictionary containing polymorphic sites (value) accessed by
+            position in the alignment (key).
     """
     result = {}
     for i in range(len(alignment[0])):
@@ -88,6 +117,14 @@ def _join_alignments(align_dict):
     """
     Take a dictionary of multiple sequence alignments, and join according to
     dictionary key order (generally position in sequence).
+
+    Args:
+        align_dict (dict): A dictionary containing single-site multiple sequence
+            alignment objects accessed by position in original alignment.
+
+    Returns:
+        MultipleSequenceAlignment: A multiple sequence alignment object
+            containing all polymorphic sites.
     """
     output = None
     for key in sorted(align_dict):
@@ -101,8 +138,22 @@ def _join_alignments(align_dict):
 def blast_sequences(comp_seq, ref_seq):
     '''
     Perform BLAST of two protein sequences using NCBI BLAST+ package.
+
     Output is two dictionaries: residue numbering in PDB chain (key) mapped to
     the residue position in the reference sequence (value), and vice versa.
+
+    Notes:
+        User must have NCBI BLAST+ package installed in user's PATH.
+
+    Args:
+        comp_seq (str): A comparison protein sequence.
+        ref_seq (str): A reference protein sequence.
+
+    Returns:
+        dict: A dictionary mapping comparison sequence numbering (key) to
+            reference sequence numbering (value)
+        dict: A dictionary mapping reference sequence numbering (key) to
+            comparison sequence numbering (value)
     '''
     if not isinstance(comp_seq, str):
         comp_seq = ''.join([x for x in comp_seq])
@@ -153,9 +204,20 @@ def _construct_sub_align(alignment, codons, fasta=False):
     """
     Take a structmap multiple sequence alignment object, and return a
     subset of codons based on an input list in the form [(1,2,3),(4,5,6),...].
-    Return subset of the initial alignment as a multiple sequence alignment
-    object.
-    Note that codons should be 1-indexed.
+
+    Notes:
+        Codons should be 1-indexed, not 0-indexed.
+
+    Args:
+        alignment: A multiple sequence alignment object.
+        codons (list): a subset of codons in a list of the form [(1,2,3),...]
+        fasta (bool, optional): If True, will return multiple sequence
+            alignment as a string in FASTA format.
+
+    Returns:
+        MulitpleSequenceAlignment: A subset of the initial alignment as a
+            multiple sequence alignment object. If the fasta kwarg is set to
+            True, returns a string instead.
     """
     alignments = alignment.get_alignment_position_dict()
     strains = alignment.get_isolate_ids()
@@ -171,21 +233,6 @@ def _construct_sub_align(alignment, codons, fasta=False):
         return fasta_out
     return sub_align_transpose
 
-def prot_to_dna_position(dna_indices, prot_indices):
-    """
-    Take a list of nucleotide positions in a reference sequence, and a map
-    of protein residue numbers matching the nucleotide positions,
-    and return a dictionary with key: residue number (int), value: nucleotide
-    positions (list of 3 values). Eg. {4:[7,8,9]}
-    >>> prot_indices = [5,6,8]
-    >>> dna_indices = range(1,10)
-    >>> x = prot_to_dna_position(dna_indices,prot_indices)
-    >>> print([(y,x[y]) for y in sorted(x)])
-    [(5, (1, 2, 3)), (6, (4, 5, 6)), (8, (7, 8, 9))]
-    """
-    lookup_dict = {x:tuple(dna_indices[i*3:(i+1)*3]) for i, x in
-                   enumerate(prot_indices)}
-    return lookup_dict
 
 def align_protein_to_dna(prot_seq, dna_seq):
     """

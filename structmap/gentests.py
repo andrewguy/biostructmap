@@ -40,8 +40,7 @@ def tajimas_d(alignment, window=None, step=3):
         results = {}
         prev_win = None
         prev_d = None
-        slide = _sliding_window_var_sites(alignment, window, step=step,
-                                          isfile=False)
+        slide = _sliding_window_var_sites(alignment, window, step=step)
         for i, win in enumerate(slide):
             centre = i*step + 1 + (window-1)/2
             if win == prev_win:

@@ -165,27 +165,27 @@ class TestSeqtools(TestCase):
         step = 3
         length = 10
         #Test sliding window output in AlignIO format
-        slider = _sliding_window(self.alignment, length, step=step, isfile=False, fasta_out=False)
+        slider = _sliding_window(self.alignment, length, step=step, fasta_out=False)
         for i, window in enumerate(slider):
             to_equal = self.alignment[:, i*step:i*step+length]
             to_equal = to_equal.format('fasta')
             window_fasta = window.format('fasta')
             self.assertEqual(window_fasta, to_equal)
         #Test fasta output
-        slider = _sliding_window(self.alignment, length, step=step, isfile=False, fasta_out=True)
+        slider = _sliding_window(self.alignment, length, step=step, fasta_out=True)
         for i, window in enumerate(slider):
             to_equal = self.alignment[:, i*step:i*step+length]
             to_equal = to_equal.format('fasta')
             self.assertEqual(window, to_equal)
         #Test reading from file
-        slider = _sliding_window(self.test_file, length, step=step, isfile=True, fasta_out=False)
+        slider = _sliding_window(self.test_file, length, step=step, fasta_out=False)
         for i, window in enumerate(slider):
             to_equal = self.alignment[:, i*step:i*step+length]
             to_equal = to_equal.format('fasta')
             window_fasta = window.format('fasta')
             self.assertEqual(window_fasta, to_equal)
         #Test with a different step size
-        slider = _sliding_window(self.alignment, length, step=1, isfile=False, fasta_out=False)
+        slider = _sliding_window(self.alignment, length, step=1, fasta_out=False)
         for i, window in enumerate(slider):
             to_equal = self.alignment[:, i:i+length]
             to_equal = to_equal.format('fasta')
@@ -195,7 +195,7 @@ class TestSeqtools(TestCase):
     def test_sliding_window_var_sites(self):
         step = 3
         length = 10
-        slider = _sliding_window_var_sites(self.alignment, length, step, isfile=False)
+        slider = _sliding_window_var_sites(self.alignment, length, step)
         varsites_keys_to_match = [28, 46, 67, 93, 95, 98, 100]
         null_align = self.alignment[:,0:0]
         for i, window in enumerate(slider):
@@ -214,7 +214,7 @@ class TestSeqtools(TestCase):
     def test_sliding_window_var_sites_with_file(self):
         step = 3
         length = 10
-        slider = _sliding_window_var_sites(self.test_file, length, step, isfile=True)
+        slider = _sliding_window_var_sites(self.test_file, length, step)
         varsites_keys_to_match = [28, 46, 67, 93, 95, 98, 100]
         null_align = self.alignment[:,0:0]
         for i, window in enumerate(slider):
@@ -279,7 +279,6 @@ class TestSeqtools(TestCase):
     def test_protein_dna_alignment_with_intron(self):
         """Need to account for an intron frameshift when converting from DNA to
         protein sequence.
-        NEED TO WRITE THIS TEST
         """
         dna = 'ATGAAATGTAATATTAGTATATATTTTTTT' + 'GTTGTATAG' + 'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT'
         protein = 'MKCNISIYFFMKCNISIYFFMKCNISIYFF'
@@ -289,13 +288,6 @@ class TestSeqtools(TestCase):
         self.assertEqual(result_keys_to_match, sorted(result))
         sorted_codons = [result[i] for i in sorted(result)]
         self.assertEqual(result_codons_to_match, sorted_codons)
-
-    def test_prot_to_dna_position(self):
-        prot_indices = [5,6,8]
-        dna_indices = range(1,10)
-        to_match = {5:(1,2,3),6:(4,5,6), 8:(7,8,9)}
-        result = seqtools.prot_to_dna_position(dna_indices,prot_indices)
-        self.assertEqual(result, to_match)
 
     def test_sub_align(self):
         codons = [(1,2,3),(4,5,6),(10,11,12)]

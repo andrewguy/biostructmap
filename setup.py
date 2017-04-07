@@ -6,8 +6,11 @@ import sys
 from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
 
-
-import structmap
+# Version is defined in structmap/__init__.py
+__version__ = "Undefined"
+for line in open('structmap/__init__.py'):
+    if (line.startswith('__version__')):
+        exec(line.strip())
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -35,15 +38,15 @@ class PyTest(TestCommand):
 
 setup(
     name='structmap',
-    version=structmap.__version__,
+    version=__version__,
     url='',
-    license='Apache Software License',
     author='Andrew Guy',
     tests_require=['pytest'],
+    setup_requires=['numpy'],
     install_requires=['Biopython>=1.66',
                       'DendroPy>=4.0.3',
-                      'NumPy',
-                      'SciPy'
+                      'numpy',
+                      'scipy'
                      ],
     cmdclass={'test': PyTest},
     author_email='andrewguy@burnet.edu.au',
@@ -58,7 +61,7 @@ setup(
         'Development Status :: 2 - Pre-Alpha',
         'Natural Language :: English',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: Apache Software License',
+        'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         ],

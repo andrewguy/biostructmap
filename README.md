@@ -25,11 +25,15 @@ results = chain.map(data, method='snps', ref=None, radius=15)
 results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
 ```
 
-### Prerequisites
+## Prerequisites
 
 Installing the Structmap package requires both an install of the main package, as well as install of a few external binaries (NCBI BLAST+, Exonerate and DSSP).
 
+### BLAST+
+
 To install the BLAST+ package, visit the [NCBI BLAST+ site](https://blast.ncbi.nlm.nih.gov/) and follow the links to download and install a local copy of the BLAST+ application.
+
+### DSSP
 
 To install DSSP, visit the [DSSP website](http://swift.cmbi.ru.nl/gv/dssp/) and follow the instructions for install. Alternatively, users of recent Ubuntu or Debian distributions will find that DSSP is available as part of these distributions. To check if DSSP is currently installed under Linux, try running:
 
@@ -47,6 +51,8 @@ sudo apt-get install dssp
 
 If this fails you will have to install DSSP from the source code provided [here](http://swift.cmbi.ru.nl/gv/dssp/).
 
+### Exonerate
+
 To install Exonerate, visit the [Exonerate website](http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate) and follow the instructions to install Exonerate on your system. Alternatively, Exonerate is available through the default Ubuntu repositories:
 
 ```
@@ -54,6 +60,8 @@ sudo apt-get install exonerate
 ```
 
 Note that Exonerate is only required if performing calculation of Tajima's D over a protein structure using a multiple sequence alignment - it is used to align a genomic sequence to a protein coding region. If this functionality is not required, then Structmap can be installed and run without Exonerate, although some of the tests will fail.
+
+### Numpy, Scipy
 
 Before install Structmap it is recommended to install Numpy and Scipy using your Python package manager of choice (eg pip or conda). If you are using the Anaconda distribution of Python, then both NumPy and SciPy should be installed already. If not, or if you are using a virtual environment:
 
@@ -67,7 +75,7 @@ or
 pip install numpy scipy
 ```
 
-### Installing
+#### Installing
 
 To install the Structmap package, it is first recommended that you make sure all tests pass in your environment.
 

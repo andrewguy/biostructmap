@@ -29,9 +29,9 @@ results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
 
 Installing the Structmap package requires both an install of the main package, as well as install of a few external binaries (NCBI BLAST+, Exonerate and DSSP).
 
-To install the BLAST+ package, visit the [NCBI BLAST+ site] (https://blast.ncbi.nlm.nih.gov/) and follow the links to download and install a local copy of the BLAST+ application.
+To install the BLAST+ package, visit the [NCBI BLAST+ site](https://blast.ncbi.nlm.nih.gov/) and follow the links to download and install a local copy of the BLAST+ application.
 
-To install DSSP, visit the [DSSP website] (http://swift.cmbi.ru.nl/gv/dssp/) and follow the instructions for install. Alternatively, users of recent Ubuntu or Debian distributions will find that DSSP is available as part of these distributions. To check if DSSP is currently installed under Linux, try running:
+To install DSSP, visit the [DSSP website](http://swift.cmbi.ru.nl/gv/dssp/) and follow the instructions for install. Alternatively, users of recent Ubuntu or Debian distributions will find that DSSP is available as part of these distributions. To check if DSSP is currently installed under Linux, try running:
 
 ```
 dssp --version || mkdssp --version
@@ -45,9 +45,9 @@ If DSSP is not installed, you can try installing `dssp` using your local package
 sudo apt-get install dssp
 ```
 
-If this fails you will have to install DSSP from the source code provided [here] (http://swift.cmbi.ru.nl/gv/dssp/).
+If this fails you will have to install DSSP from the source code provided [here](http://swift.cmbi.ru.nl/gv/dssp/).
 
-To install Exonerate, visit the [Exonerate website] (http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate) and follow the instructions to install Exonerate on your system. Alternatively, Exonerate is available through the default Ubuntu repositories:
+To install Exonerate, visit the [Exonerate website](http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate) and follow the instructions to install Exonerate on your system. Alternatively, Exonerate is available through the default Ubuntu repositories:
 
 ```
 sudo apt-get install exonerate

@@ -229,7 +229,8 @@ def _construct_sub_align(alignment, codons, fasta=False):
     _sub_align_transpose = zip(*sub_align)
     sub_align_transpose = [''.join(x) for x in _sub_align_transpose]
     if fasta:
-        fasta_out = ''.join('>{}\n{}\n'.format(*t) for t in zip(strains, sub_align_transpose))
+        fasta_out = ''.join('>{}\n{}\n'.format(*t) for t in
+                            zip(strains, sub_align_transpose))
         return fasta_out
     return sub_align_transpose
 
@@ -293,8 +294,7 @@ def align_protein_to_dna(prot_seq, dna_seq):
         step = operator.sub
         dna_count += 1
     else:
-        raise UserWarning("Exonerate direction does not match either '+' or '-'")
-
+        raise UserWarning("Exonerate direction doesn't match either '+' or '-'")
 
     if len(matches) % 3:
         raise UserWarning("The vulgar output from exonerate has failed \

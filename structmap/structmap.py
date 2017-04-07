@@ -192,26 +192,6 @@ class Structure(object):
             self._pdbfile.seek(0)
         return self._pdbfile
 
-    def map(self, data, method='default', ref=None, radius=15, selector='all'):
-        """Function which performs a mapping of some parameter or function to
-        a pdb structure, with the ability to apply the function over a
-        '3D sliding window'.
-
-        The residues within a radius of a central
-        residue are passed to the function, which computes an output value for
-        the central residue. This is performed for each residue in the
-        structure.
-        """
-        output = {}
-        for model in self:
-            for chain in model:
-                unique_id = (model.get_id(), chain.get_id())
-                output[unique_id] = chain.map(data, method=method, ref=ref,
-                                              radius=radius, selector=selector)
-        return output
-        #TODO Update this function to be more useful.
-        #Need to pass chain specific data most of the time.
-
 
 class Model(object):
     """A class to hold a PDB model object.

@@ -23,7 +23,7 @@ def read(*filenames, **kwargs):
             buf.append(f.read())
     return sep.join(buf)
 
-LONG_DESCRIPTION = read('README.txt', 'CHANGES.txt')
+LONG_DESCRIPTION = read('README.md', 'CHANGES.txt')
 
 class PyTest(TestCommand):
     def finalize_options(self):

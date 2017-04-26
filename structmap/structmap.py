@@ -605,6 +605,9 @@ class Chain(object):
         Function to remove residues with relative solvent accessibility
         values outside the requested range.
 
+        If a residue solvent accessibility cannot be calculated by DSSP,
+        then that residue is ignored.
+
         Args:
             residues (list): List of residues to filter.
             rsa_range (list/tuple): A tuple/list of the form (min, max),
@@ -617,8 +620,8 @@ class Chain(object):
                 accessibility within the required range (inclusive).
         '''
         rsa = self.rel_solvent_access()
-        filtered_residues = [x for x in residues if rsa_range[0] <= rsa[x]
-                             <= rsa_range[1]]
+        filtered_residues = [x for x in residues if rsa.get(x, None) and
+                             rsa_range[0] <= rsa[x] <= rsa_range[1]]
         return filtered_residues
 
 

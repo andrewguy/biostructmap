@@ -44,7 +44,7 @@ from __future__ import absolute_import, division, print_function
 from copy import deepcopy
 import tempfile
 from os import path
-from Bio.PDB import DSSP, PDBIO, PDBParser
+from Bio.PDB import DSSP, PDBIO, PDBParser, MMCIFParser
 from Bio import AlignIO
 from . import pdbtools, gentests
 from .pdbtools import match_pdb_residue_num_to_seq, SS_LOOKUP_DICT
@@ -126,6 +126,76 @@ class DataMap(dict):
         pdb_io.save(path.join(outdir, filename))
         return None
 
+    def write_to_atom(self, output, sep=','): #TODO write tests
+        """Write score for each atom in a structure to a file, based on
+        a data dictionary mapping output score to residue number.
+
+        Each line of the output file contains an entry for a single atom.
+
+        Args:
+            output (str): Output file name/path.
+            sep (str, optional): Seperator between residue and data.
+                Defaults to `,`.
+        Returns:
+            None
+        """
+        #For each atom in the structure, write an output score based on the data
+        #given, presuming (key,value) in a dictionary with key corresponding to
+        #a residue number.
+        with open(output, 'w') as f:
+            for res in sorted(self):
+                residue = self.chain[int(res)]
+                for atom in residue:
+                    data_pt = [str(x) for x in [atom.serial_number, self[res]]]
+                    line = sep.join(data_pt) + '\n'
+                    f.write(line)
+        return
+
+    def write_to_residue(self, output, sep=',', ref=None): #TODO write tests
+        """Write score for each residue in a structure to a file, based on
+        a data dictionary mapping output score to residue number.
+
+        Each line of the output file contains an entry for a single residue.
+        This method additionally allows for scores to be aligned to a reference
+        sequence for easy comparison with other metrics or a conventional
+        reference sequence.
+
+        Args:
+            output (str): Output file name/path.
+            sep (str, optional): Seperator between residue and data.
+                Defaults to `,`.
+            ref (str, optional): A reference sequence with which to align
+                data to.
+        Returns:
+            None
+        """
+        if ref is None:
+            with open(output, 'w') as f:
+                for res in sorted(self):
+                    data_pt = [str(x) for x in [res, self[res]]]
+                    line = sep.join(data_pt) + '\n'
+                    f.write(line)
+        else:
+            seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self.chain, self.chain.sequence)
+            pdbindex_to_ref, _ = blast_sequences(self.chain.sequence, ref)
+            pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x
+                             in pdbindex_to_ref if x in seq_index_to_pdb_numb}
+            with open(output, 'w') as f:
+                for res in sorted(self):
+                    if res not in pdbnum_to_ref:
+                        output = ("Residue {res} in PDB file {pdb} was not"
+                                  " matched to reference sequence provided"
+                                  " for writing to output file").format(
+                                      res=res,
+                                      pdb=self.chain.parent().parent().pdbname)
+
+                        print(output)
+                        continue
+                    data_pt = [str(x) for x in [pdbnum_to_ref[res], self[res]]]
+                    line = sep.join(data_pt) + '\n'
+                    f.write(line)
+        return
+
     def _parameter_string(self):
         """Create descriptive string from parameter values"""
         param_string = '_'.join(["{k}-{v}".format(k=key, v=value)
@@ -153,7 +223,7 @@ class Structure(object):
             pdbname (str): A descriptive name for the PDB file. This is used
                 as part of the default naming options when writing output files.
         """
-        #create pdb parser, get structure.
+        # Create PDB parser
         parser = PDBParser()
         #Get Bio.PDB structure
         self._pdbfile = pdbfile
@@ -191,26 +261,6 @@ class Structure(object):
         if not isinstance(self._pdbfile, str):
             self._pdbfile.seek(0)
         return self._pdbfile
-
-    def map(self, data, method='default', ref=None, radius=15, selector='all'):
-        """Function which performs a mapping of some parameter or function to
-        a pdb structure, with the ability to apply the function over a
-        '3D sliding window'.
-
-        The residues within a radius of a central
-        residue are passed to the function, which computes an output value for
-        the central residue. This is performed for each residue in the
-        structure.
-        """
-        output = {}
-        for model in self:
-            for chain in model:
-                unique_id = (model.get_id(), chain.get_id())
-                output[unique_id] = chain.map(data, method=method, ref=ref,
-                                              radius=radius, selector=selector)
-        return output
-        #TODO Update this function to be more useful.
-        #Need to pass chain specific data most of the time.
 
 
 class Model(object):

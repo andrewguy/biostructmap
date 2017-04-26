@@ -331,22 +331,6 @@ class TestStructmap(TestCase):
         self.assertTrue(isinstance(structure.structure, Bio.PDB.Structure.Structure))
         self.assertTrue(isinstance(structure.sequences, dict))
 
-    def test_structure_map_function(self):
-        structure = structmap.Structure(self.test_file)
-        dummy_data = []
-        def dummy_method(chain, data, residues, ref):
-            return (chain, data, residues, ref)
-        results = structure.map(dummy_data, dummy_method, ref=None, radius=15, selector='all')
-        #Verify that we get an appropriate output for each residue within each chain and model.
-        for model in structure:
-            for chain in model:
-                output = results[(model.get_id(), chain.get_id())]
-                for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-                    _chain, _data, _residues, _ref = output[residue.get_id()[1]]
-                    self.assertEqual(_chain, chain)
-                    self.assertEqual(_data, dummy_data)
-                    self.assertTrue(isinstance(_residues,np.ndarray))
-                    self.assertTrue(isinstance(_ref, dict))
 
     def test_model_instantiation(self):
         structure = structmap.Structure(self.test_file)

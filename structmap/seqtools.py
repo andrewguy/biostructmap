@@ -253,8 +253,7 @@ def align_protein_to_dna(prot_seq, dna_seq):
         dict: A dictionary mapping protein residue numbers to codon positions:
             e.g. {3:(6,7,8), 4:(9,10,11), ...}
     """
-    #TODO Use Biopython exonerate parser. Didn't realise that existed when
-    # I wrote this parser.
+    #TODO Use Biopython exonerate parser. Didn't realise that existed when I wrote this parser.
     with tempfile.NamedTemporaryFile(mode='w') as protein_seq_file, \
          tempfile.NamedTemporaryFile(mode='w') as dna_seq_file:
         protein_seq_file.write(">\n" + prot_seq + "\n")

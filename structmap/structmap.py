@@ -560,7 +560,7 @@ class Chain(object):
                     continue
             else:
                 residues = residue_map[residue]
-            results[residue] = method(self, data, residues, ref=pdbnum_to_ref)
+            results[residue] = method(self, data, residues, pdbnum_to_ref)
         params = {'radius':radius, 'selector': selector}
         return DataMap(results, chain=self, params=params)
 

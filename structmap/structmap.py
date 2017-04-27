@@ -42,7 +42,7 @@ value of Tajima's D.
 from __future__ import absolute_import, division, print_function
 
 from copy import deepcopy
-import tempfile
+from tempfile import NamedTemporaryFile
 from os import path
 from Bio.PDB import DSSP, PDBIO, PDBParser, MMCIFParser
 from Bio import AlignIO
@@ -214,7 +214,7 @@ class Structure(object):
             model id.
         pdbname (str): A descriptive name for the PDB file.
     """
-    def __init__(self, pdbfile, pdbname='pdb_file'):
+    def __init__(self, pdbfile, pdbname='pdb_file', mmcif=False):
         """Initialise PDB Structure object.
 
         Args:
@@ -222,16 +222,23 @@ class Structure(object):
                 that contains a PDB file.
             pdbname (str): A descriptive name for the PDB file. This is used
                 as part of the default naming options when writing output files.
+            mmcif (bool, optional): Set to true if reading a PDBx/mmCIF file,
+                otherwise this defaults to reading a PDB file.
         """
         # Create PDB parser
-        # TODO Create parser
-        parser = PDBParser()
+        if mmcif:
+            parser = MMCIFParser()
+        else:
+            parser = PDBParser()
+        self._mmcif = mmcif
         #Get Bio.PDB structure
         self._pdbfile = pdbfile
         self.structure = parser.get_structure(pdbname, self.pdb_file())
         #Get PDB sequences
-        #TODO MMCIF sequence
-        self.sequences = pdbtools.get_pdb_seq(self.pdb_file())
+        if mmcif:
+            self.sequences = pdbtools.get_mmcif_seq(self.pdb_file())
+        else:
+            self.sequences = pdbtools.get_pdb_seq(self.pdb_file())
         self.models = {model.get_id():Model(self, model) for
                        model in self.structure}
 
@@ -292,15 +299,21 @@ class Model(object):
             try:
                 self.dssp = DSSP(self.model, structure.pdb_file())
             except OSError:
-                self.dssp = DSSP(self.model, structure.pdb_file(), dssp="mkdssp")
+                self.dssp = DSSP(self.model, structure.pdb_file(),
+                                 dssp="mkdssp")
         elif self._id == 0:
-            with tempfile.NamedTemporaryFile(mode='w') as temp_pdb_file:
+            if structure._mmcif:
+                suffix = '.cif'
+            else:
+                suffix = '.pdb'
+            with NamedTemporaryFile(mode='w', suffix=suffix) as temp_pdb_file:
                 temp_pdb_file.write(structure.pdb_file().read())
                 temp_pdb_file.flush()
                 try:
                     self.dssp = DSSP(self.model, temp_pdb_file.name)
                 except OSError:
-                    self.dssp = DSSP(self.model, temp_pdb_file.name, dssp="mkdssp")
+                    self.dssp = DSSP(self.model, temp_pdb_file.name,
+                                     dssp="mkdssp")
         else:
             self.dssp = {}
         self.chains = {chain.get_id():Chain(self, chain) for

@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function
 from Bio.SeqIO import PdbIO
 from Bio.SeqUtils import seq1
 from Bio.Data.SCOPData import protein_letters_3to1
+from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 from scipy.spatial import distance
 import numpy as np
 from .seqtools import blast_sequences
@@ -134,6 +135,25 @@ def get_pdb_seq(filename):
         sequences = {s.id.split(":")[1]:''.join([x for x in s]) for s in seq}
     except IndexError:
         sequences = {s.id:''.join([x for x in s]) for s in seq}
+    return sequences
+
+def get_mmcif_seq(filename):
+    """
+    Get structure sequences from an mmCIF file.
+
+    Args:
+        filename (str/filehandle): An mmCIF filename or file-like object.
+    Returns:
+        dict: Protein sequences (str) accesssed by chain id.
+    """
+    # Get underlying mmCIF dictionary
+    mmcif_dict = MMCIF2Dict(filename)
+    # Parse dictionary to extract sequences from mmCIF file
+    entity_ids = mmcif_dict['_entity_poly.entity_id']
+    chain_ids = [ids.split(',') for ids in mmcif_dict['_entity_poly.pdbx_strand_id']]
+    entity_seqs = mmcif_dict['_entity_poly.pdbx_seq_one_letter_code']
+    # Create dictionary of chain id (key) and sequences (value)
+    sequences = dict((x, sublist[1]) for sublist in zip(chain_ids, entity_seqs) for x in sublist[0])
     return sequences
 
 def get_pdb_seq_from_atom(chain):

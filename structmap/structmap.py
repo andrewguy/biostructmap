@@ -224,11 +224,13 @@ class Structure(object):
                 as part of the default naming options when writing output files.
         """
         # Create PDB parser
+        # TODO Create parser
         parser = PDBParser()
         #Get Bio.PDB structure
         self._pdbfile = pdbfile
         self.structure = parser.get_structure(pdbname, self.pdb_file())
         #Get PDB sequences
+        #TODO MMCIF sequence
         self.sequences = pdbtools.get_pdb_seq(self.pdb_file())
         self.models = {model.get_id():Model(self, model) for
                        model in self.structure}
@@ -285,6 +287,7 @@ class Model(object):
         self.model = model
         self._parent = structure
         #DSSP only works on the first model in the PDB file
+        # TODO Check DSSP works with mmcif
         if isinstance(structure.pdb_file(), str) and self._id == 0:
             try:
                 self.dssp = DSSP(self.model, structure.pdb_file())
@@ -347,6 +350,7 @@ class Chain(object):
         self.dssp = self._parent.dssp
         #Some PDB files do not contain sequences in the header, and
         #hence we need to parse the atom records for each chain
+        # TODO Adjust for MMCIF
         try:
             self.sequence = model.parent().sequences[self.get_id()]
         except KeyError:
@@ -527,11 +531,13 @@ class Chain(object):
                    "aa_scale": _map_amino_acid_scale}
         #Create a map of pdb sequence index (1-indexed) to pdb residue
         #numbering from file
+        # TODO Redo this for mmcif
         seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
         #Generate a map of nearby residues for each residue in pdb file. numbering
         #is according to pdb residue numbering from file
         residue_map = self.nearby(radius=radius, atom=selector)
         results = {}
+        # TODO create generic method for mapping genetic data
         if ref is None and method != 'tajimasd':
             ref = self.sequence
         elif ref is None and method == 'tajimasd':

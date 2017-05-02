@@ -147,7 +147,10 @@ def nearby(chain, radius=15, selector='all'):
         else:
             ref_dict[atom[i]] = np.append(ref_dict[atom[i]],
                                           atom[np.nonzero(atom)])
-    _ref_dict = {ref[key-1]: {ref[x-1] for x in value} for key, value in ref_dict.items()}
+    _ref_dict = {}
+    # Go from numerical index to residue id
+    for key, value in ref_dict.items():
+        _ref_dict[ref[key-1]] = {ref[x-1] for x in value} | _ref_dict.get(ref[key-1], set())
     return _ref_dict
 
 

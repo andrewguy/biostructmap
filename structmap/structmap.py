@@ -44,10 +44,11 @@ from __future__ import absolute_import, division, print_function
 from copy import deepcopy
 from tempfile import NamedTemporaryFile
 from os import path
-from Bio.PDB import DSSP, PDBIO, PDBParser, MMCIFParser
+from Bio.PDB import DSSP, PDBIO, PDBParser, FastMMCIFParser
 from Bio import AlignIO
+from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 from . import pdbtools, gentests
-from .pdbtools import match_pdb_residue_num_to_seq, SS_LOOKUP_DICT
+from .pdbtools import match_pdb_residue_num_to_seq, SS_LOOKUP_DICT, mmcif_sequence_to_res_id
 from .map_functions import (_tajimas_d, _default_mapping, _snp_mapping,
                             _map_amino_acid_scale)
 from .seqtools import (blast_sequences, align_protein_to_dna,
@@ -227,7 +228,7 @@ class Structure(object):
         """
         # Create PDB parser
         if mmcif:
-            parser = MMCIFParser()
+            parser = FastMMCIFParser()
         else:
             parser = PDBParser()
         self._mmcif = mmcif
@@ -236,13 +237,14 @@ class Structure(object):
         self.structure = parser.get_structure(pdbname, self.pdb_file())
         #Get PDB sequences
         if mmcif:
-            self.sequences = pdbtools.get_mmcif_seq(self.pdb_file())
+            self.sequences = pdbtools.get_mmcif_canonical_seq(self.pdb_file())
         else:
             self.sequences = pdbtools.get_pdb_seq(self.pdb_file())
         self.models = {model.get_id():Model(self, model) for
                        model in self.structure}
 
         self.pdbname = pdbname
+        self._mmcif_dict = None
 
     def __iter__(self):
         """Iterate over all models within structure"""
@@ -254,9 +256,8 @@ class Structure(object):
         return self.models[key]
 
     def pdb_file(self):
-        '''
-        Return the PDB file object, which can either be a string, or a file-like
-        object.
+        '''Return the PDB file object, which can either be a string, or a
+        file-like object.
 
         Notes:
             If it is a file-like object, sets read point to start of the
@@ -270,6 +271,20 @@ class Structure(object):
         if not isinstance(self._pdbfile, str):
             self._pdbfile.seek(0)
         return self._pdbfile
+
+    def mmcif_dict(self):
+        '''Return the mmcif dictionary.
+
+        Only applicable if using an mmCIF file.
+
+        Returns:
+            dict: A dictionary containing mmCIF data.
+        '''
+        if self._mmcif and self._mmcif_dict is None:
+            self._mmcif_dict = MMCIF2Dict(self.pdb_file())
+        elif not self._mmcif:
+            raise TypeError("Not an mmCIF file!")
+        return self._mmcif_dict
 
 
 class Model(object):
@@ -294,7 +309,6 @@ class Model(object):
         self.model = model
         self._parent = structure
         #DSSP only works on the first model in the PDB file
-        # TODO Check DSSP works with mmcif
         if isinstance(structure.pdb_file(), str) and self._id == 0:
             try:
                 self.dssp = DSSP(self.model, structure.pdb_file())
@@ -363,10 +377,12 @@ class Chain(object):
         self.dssp = self._parent.dssp
         #Some PDB files do not contain sequences in the header, and
         #hence we need to parse the atom records for each chain
-        # TODO Adjust for MMCIF
         try:
             self.sequence = model.parent().sequences[self.get_id()]
         except KeyError:
+            if self._parent._parent._mmcif:
+                raise KeyError("mmCIF file doesn't contain sequences " \
+                              "for chain {chain_id}".format(chain_id=self._id))
             self.sequence = pdbtools.get_pdb_seq_from_atom(chain)
             self._parent.parent().sequences[self.get_id()] = self.sequence
         self._nearby = {}
@@ -425,9 +441,9 @@ class Chain(object):
                 key = (self.get_id(), residue.get_id())
                 if key in self.dssp:
                     try:
-                        rsa[key[1][1]] = float(self.dssp[key][3])
+                        rsa[key[1]] = float(self.dssp[key][3])
                     except ValueError:
-                        rsa[key[1][1]] = None
+                        rsa[key[1]] = None
             self._rsa = rsa
         return self._rsa
 
@@ -483,7 +499,7 @@ class Chain(object):
             return ss_dict
 
     def map(self, data, method='default', ref=None, radius=15, selector='all',
-            rsa_range=None):
+            rsa_range=None, map_to_dna=False):
         """Perform a mapping of some parameter or function to a pdb structure,
         with the ability to apply the function over a '3D sliding window'.
 
@@ -519,6 +535,8 @@ class Chain(object):
                 all residues on (ie. map method will ignore all residues
                 outside this range). This is useful when wanting to examine only
                 surface exposed residues.
+            map_to_dna (bool, optional): Set True if the mapping method involves
+                aligning to a DNA sequence. Defaults to False.
 
         Returns:
             structmap.DataMap: A dictionary-like object which contains mapped
@@ -545,18 +563,27 @@ class Chain(object):
         #Create a map of pdb sequence index (1-indexed) to pdb residue
         #numbering from file
         # TODO Redo this for mmcif
-        seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
+        is_mmcif = self._parent._parent._mmcif
+        if is_mmcif:
+            mmcif_dict = self.parent().parent().mmcif_dict()
+            _, seq_index_to_pdb_numb = mmcif_sequence_to_res_id(mmcif_dict)
+        else:
+            seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
         #Generate a map of nearby residues for each residue in pdb file. numbering
         #is according to pdb residue numbering from file
         residue_map = self.nearby(radius=radius, atom=selector)
         results = {}
-        # TODO create generic method for mapping genetic data
-        if ref is None and method != 'tajimasd':
-            ref = self.sequence
-        elif ref is None and method == 'tajimasd':
+
+        # If method involves mapping to a genome, then we presume the data given
+        # contains a multiple sequence alignment, and we use the first sequence
+        # as reference. Note that it would be better to provide a reference
+        # genome in most cases.
+        if ref is None and map_to_dna:
             ref = data[0]
+        elif ref is None:
+            ref = self.sequence
         #Generate mapping of pdb sequence index to dna sequence
-        if method == 'tajimasd':
+        if map_to_dna:
             pdbindex_to_ref = align_protein_to_dna(self.sequence,
                                                    ''.join([x for x in ref]))
         #Generate mapping of pdb sequence index to reference sequence (also indexed by position)

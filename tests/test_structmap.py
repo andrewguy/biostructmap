@@ -57,28 +57,30 @@ class TestPdbtools(TestCase):
     def test_nearby_residues_function_with_CA(self):
         radius = 15
         selector = 'CA'
-        test_residue = 57
+        test_residue = (' ', 57, ' ')
         test_residue_to_match = [48,  49,  50,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,
                                  62,  63,  64,  65,  66,  98,  99, 101, 102, 103, 104, 116, 117,
                                  118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 136,
                                  137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 151]
+        residues_to_match = {(' ', x, ' ') for x in test_residue_to_match}
         nearby = pdbtools.nearby(self.test_chain, radius, selector)
-        result = nearby[test_residue].tolist()
-        self.assertEqual(result, test_residue_to_match)
+        result = nearby[test_residue]
+        self.assertEqual(result, residues_to_match)
 
     def test_nearby_residues_function_with_all_atoms(self):
         radius = 15
         selector = 'all'
-        test_residue = 57
+        test_residue = (' ', 57, ' ')
         test_residue_to_match = [8, 11, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
                                  56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
                                  69, 98, 99, 100, 101, 102, 103, 104, 105, 115, 116, 117, 118,
                                  119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
                                  132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144,
                                  145, 146, 147, 148, 149, 150, 151, 152, 154]
+        residues_to_match = {(' ', x, ' ') for x in test_residue_to_match}
         nearby = pdbtools.nearby(self.test_chain, radius, selector)
-        result = nearby[test_residue].tolist()
-        self.assertEqual(result, test_residue_to_match)
+        result = nearby[test_residue]
+        self.assertEqual(result, residues_to_match)
 
     def test_get_pdb_sequence(self):
         filename = './tests/pdb/1zrl.pdb'
@@ -101,7 +103,7 @@ class TestPdbtools(TestCase):
 
     def test_get_mmcif_seq(self):
         filename = './tests/pdb/4nuv.cif'
-        sequence = pdbtools.get_mmcif_seq(filename)
+        sequence = pdbtools.get_mmcif_canonical_seq(filename)
         to_match = {'C': 'GPTGTENSSQLDFEDVWNSSYGVNDSFPDGDYGA',
                     'D': 'GPTGTENSSQLDFEDVWNSSYGVNDSFPDGDYGA',
                     'A': ('ASNTVMKNCNYKRKRRERDWDCNTKKDVCIPDRRYQLCMKELTNLVNNTDT'
@@ -120,7 +122,7 @@ class TestPdbtools(TestCase):
                           'NTQEVVTNVDN')}
         self.assertDictEqual(sequence, to_match)
         with self.assertRaises(IOError):
-            pdbtools.get_mmcif_seq('not_a_file')
+            pdbtools.get_mmcif_canonical_seq('not_a_file')
 
     def test_tajimas_d_on_structure(self):
         #test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
@@ -387,28 +389,28 @@ class TestStructmap(TestCase):
         result = structure[0]['A'].nearby()
         self.assertTrue(isinstance(result, dict))
         for i in result.values():
-            self.assertTrue(isinstance(i, np.ndarray))
+            self.assertTrue(isinstance(i, set))
 
     def test_rsa_determination(self):
         chain = structmap.Structure(self.test_file)[0]['A']
         result = chain.rel_solvent_access()
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            self.assertTrue(isinstance(result[residue.get_id()[1]], float))
+            self.assertTrue(isinstance(result[residue.get_id()], float))
 
     def test_default_mapping_procedure(self):
         chain = structmap.Structure(self.test_file)[0]['A']
         mapping = chain.map([x for x in range(0,25)])
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()[1]]
+            result = mapping[residue.get_id()]
             self.assertTrue(isinstance(result, float))
         mapping = chain.map([x for x in range(0,25)], method='default', ref=None, radius=.1, selector='all')
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()[1]]
+            result = mapping[residue.get_id()]
             self.assertEqual(result, residue.get_id()[1])
         #Test if data is in a dictionary
         mapping = chain.map({x:x for x in range(0,25)})
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()[1]]
+            result = mapping[residue.get_id()]
             self.assertTrue(isinstance(result, float))
         #Test that an rsa_range of 0-1 doesn't change results
         rsa_mapping = chain.map({x:x for x in range(0,25)}, rsa_range=[0,1])
@@ -418,8 +420,8 @@ class TestStructmap(TestCase):
         chain = structmap.Structure(self.test_file)[0]['A']
         mapping = chain.map([x for x in range(0, 25)])
         filtered_mapping = chain.map([x for x in range(0,25)], rsa_range=[0.2, 1])
-        self.assertEqual(filtered_mapping[13], None)
-        self.assertEqual(set(mapping.keys()) - set([x for x in filtered_mapping.keys() if filtered_mapping[x] is not None]), set([4, 13, 16]))
+        self.assertEqual(filtered_mapping[(' ', 13, ' ')], None)
+        self.assertEqual(set(mapping.keys()) - set([x for x in filtered_mapping.keys() if filtered_mapping[x] is not None]), set([(' ', 4, ' '), (' ',13, ' '), (' ', 16, ' ')]))
 
 
     def test_sequence_alignment_instantiation(self):
@@ -529,31 +531,31 @@ class TestStructmapMMCIF(TestCase):
         result = structure[0]['A'].nearby()
         self.assertTrue(isinstance(result, dict))
         for i in result.values():
-            self.assertTrue(isinstance(i, np.ndarray))
+            self.assertTrue(isinstance(i, set))
 
     def test_rsa_determination(self):
         chain = self.structure[0]['A']
         result = chain.rel_solvent_access()
         for residue in chain:
             if residue.get_resname() not in STANDARD_AA_3_LETTERS:
-                self.assertEqual(result.get(residue.get_id()[1], None), None)
+                self.assertEqual(result.get(residue.get_id(), None), None)
             else:
-                self.assertTrue(isinstance(result[residue.get_id()[1]], float))
+                self.assertTrue(isinstance(result[residue.get_id()], float))
 
     def test_default_mapping_procedure(self):
         chain = self.structure[0]['A']
         mapping = chain.map([x for x in range(0,25)])
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()[1]]
+            result = mapping[residue.get_id()]
             self.assertTrue(isinstance(result, float))
         mapping = chain.map([x for x in range(0,25)], method='default', ref=None, radius=.1, selector='all')
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()[1]]
+            result = mapping[residue.get_id()]
             self.assertEqual(result, residue.get_id()[1])
         #Test if data is in a dictionary
         mapping = chain.map({x:x for x in range(0,25)})
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()[1]]
+            result = mapping[residue.get_id()]
             self.assertTrue(isinstance(result, float))
         #Test that an rsa_range of 0-1 doesn't change results
         rsa_mapping = chain.map({x:x for x in range(0,25)}, rsa_range=[0,1])
@@ -564,7 +566,7 @@ class TestStructmapMMCIF(TestCase):
         mapping = chain.map([x for x in range(0, 25)])
         filtered_mapping = chain.map([x for x in range(0,25)], rsa_range=[0.2, 1])
         self.assertEqual(filtered_mapping[13], None)
-        self.assertEqual(set(mapping.keys()) - set([x for x in filtered_mapping.keys() if filtered_mapping[x] is not None]), set([4, 13, 16]))
+        self.assertEqual(set(mapping.keys()) - set([x for x in filtered_mapping.keys() if filtered_mapping[x] is not None]), set([(' ', 4, ' '), (' ',13, ' '), (' ', 16, ' ')]))
 
 
     def test_sequence_alignment_instantiation(self):

@@ -138,7 +138,8 @@ def nearby(chain, radius=15, selector='all'):
     ref_dict = {}
     euclidean_distance, ref = _euclidean_distance_matrix(chain, selector)
     within_radius = euclidean_distance <= radius
-    near_map = within_radius * np.arange(len(ref))
+    # 1-indexed as 0 means not within range.
+    near_map = within_radius * np.arange(1, len(ref)+1)
     #Iterate over all atoms in Euclidean distance matrix.
     for i, atom in enumerate(near_map):
         if atom[i] not in ref_dict:
@@ -146,7 +147,7 @@ def nearby(chain, radius=15, selector='all'):
         else:
             ref_dict[atom[i]] = np.append(ref_dict[atom[i]],
                                           atom[np.nonzero(atom)])
-    _ref_dict = {ref[key]: {ref[x] for x in value} for key, value in ref_dict.items()}
+    _ref_dict = {ref[key-1]: {ref[x-1] for x in value} for key, value in ref_dict.items()}
     return _ref_dict
 
 

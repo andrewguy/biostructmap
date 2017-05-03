@@ -114,7 +114,7 @@ class DataMap(dict):
         _structure = _chain.parent().parent()
         #Set all B-factor fields to zeros/default value
         for residue in _chain:
-            _data = self.get(residue.get_id()[1], default_no_value)
+            _data = self.get(residue.get_id(), default_no_value)
             if _data is None:
                 _data = default_no_value
             for atom in residue:
@@ -231,20 +231,20 @@ class Structure(object):
             parser = FastMMCIFParser()
         else:
             parser = PDBParser()
+        self._mmcif_dict = None
         self._mmcif = mmcif
         #Get Bio.PDB structure
         self._pdbfile = pdbfile
         self.structure = parser.get_structure(pdbname, self.pdb_file())
         #Get PDB sequences
         if mmcif:
-            self.sequences = pdbtools.get_mmcif_canonical_seq(self.pdb_file())
+            self.sequences = pdbtools.get_mmcif_canonical_seq(self.mmcif_dict())
         else:
             self.sequences = pdbtools.get_pdb_seq(self.pdb_file())
         self.models = {model.get_id():Model(self, model) for
                        model in self.structure}
-
         self.pdbname = pdbname
-        self._mmcif_dict = None
+
 
     def __iter__(self):
         """Iterate over all models within structure"""
@@ -492,7 +492,7 @@ class Chain(object):
                 for each residue (key) within the chain.
         '''
         keys = [x for x in self.dssp.keys() if x[0] == self._id]
-        ss_dict = {x[1][1]: self.dssp.property_dict[x][2] for x in keys}
+        ss_dict = {x[1]: self.dssp.property_dict[x][2] for x in keys}
         if numeric_ss_code:
             return {key:SS_LOOKUP_DICT[item] for key, item in ss_dict.items()}
         else:
@@ -562,11 +562,13 @@ class Chain(object):
                    "aa_scale": _map_amino_acid_scale}
         #Create a map of pdb sequence index (1-indexed) to pdb residue
         #numbering from file
-        # TODO Redo this for mmcif
         is_mmcif = self._parent._parent._mmcif
         if is_mmcif:
             mmcif_dict = self.parent().parent().mmcif_dict()
-            _, seq_index_to_pdb_numb = mmcif_sequence_to_res_id(mmcif_dict)
+            _, _seq_index_to_pdb_numb = mmcif_sequence_to_res_id(mmcif_dict)
+            seq_index_to_pdb_numb = {key: value[1] for key, value in
+                                     _seq_index_to_pdb_numb.items() if
+                                     value[0] == self.get_id()}
         else:
             seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
         #Generate a map of nearby residues for each residue in pdb file. numbering
@@ -645,8 +647,12 @@ class Chain(object):
             dict: A dictionary mapping residue number (key) to a tuple (value)
                 containing all atom serial numbers for that residue.
         """
-        mapping = {residue.id[1]:tuple(atom.serial_number for atom in residue)
-                   for residue in self.chain}
+        is_mmcif = self._parent._parent._mmcif
+        if not is_mmcif:
+            mapping = {residue.id[1]:tuple(atom.serial_number for atom in residue)
+                       for residue in self.chain}
+        else:
+            raise TypeError("Can't map to atom serial with mmcif file!")
         return mapping
 
     def write_to_residue(self, data, output, sep=',', ref=None):

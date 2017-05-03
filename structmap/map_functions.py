@@ -75,7 +75,10 @@ def _default_mapping(_chain, data, residues, ref):
     #Convert PDB residue numbering to reference numbering
     reference_residues = [ref[res] for res in residues]
     data_points = [data[res] for res in reference_residues]
-    average = np.mean(data_points)
+    if data_points:
+        average = np.mean(data_points)
+    else:
+        average = None
     return average
 
 def _snp_mapping(_chain, data, residues, ref):

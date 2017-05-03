@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function
 from Bio.SeqIO import PdbIO
 from Bio.SeqUtils import seq1
 from Bio.Data.SCOPData import protein_letters_3to1
-from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 from scipy.spatial import distance
 import numpy as np
 from .seqtools import blast_sequences
@@ -180,7 +179,7 @@ def get_pdb_seq(filename):
         sequences = {s.id:''.join([x for x in s]) for s in seq}
     return sequences
 
-def get_mmcif_canonical_seq(filename):
+def get_mmcif_canonical_seq(mmcif_dict):
     """
     Get structure sequences from an mmCIF file.
 
@@ -190,8 +189,32 @@ def get_mmcif_canonical_seq(filename):
         dict: Protein sequences (str) accesssed by chain id.
     """
     # TODO Should we use _pdbx_poly_seq_scheme here?
-    # Get underlying mmCIF dictionary
-    mmcif_dict = MMCIF2Dict(filename)
+    # Parse dictionary to extract sequences from mmCIF file
+    try:
+        entity_seqs = mmcif_dict['_entity_poly.pdbx_seq_one_letter_code_can']
+    except KeyError:
+        entity_seqs = mmcif_dict['_entity_poly.pdbx_seq_one_letter_code']
+    if isinstance(entity_seqs, list):
+        chain_ids = [ids.split(',') for ids in
+                     mmcif_dict['_entity_poly.pdbx_strand_id']]
+        # Create dictionary of chain id (key) and sequences (value)
+        sequences = dict((x, sublist[1]) for sublist in
+                         zip(chain_ids, entity_seqs) for x in sublist[0])
+    else:
+        chain_ids = mmcif_dict['_entity_poly.pdbx_strand_id'].split(',')
+        sequences = {chain_id: entity_seqs for chain_id in chain_ids}
+    return sequences
+
+def get_mmcif_seqs(mmcif_dict):
+    """
+    Get structure sequences from an mmCIF file.
+
+    Args:
+        filename (str/filehandle): An mmCIF filename or file-like object.
+    Returns:
+        dict: Protein sequences (str) accesssed by chain id.
+    """
+    # TODO Should we use _pdbx_poly_seq_scheme here?
     # Parse dictionary to extract sequences from mmCIF file
     entity_ids = mmcif_dict['_entity_poly.entity_id']
     chain_ids = [ids.split(',') for ids in mmcif_dict['_entity_poly.pdbx_strand_id']]
@@ -199,8 +222,12 @@ def get_mmcif_canonical_seq(filename):
         entity_seqs = mmcif_dict['_entity_poly.pdbx_seq_one_letter_code_can']
     except KeyError:
         entity_seqs = mmcif_dict['_entity_poly.pdbx_seq_one_letter_code']
-    # Create dictionary of chain id (key) and sequences (value)
-    sequences = dict((x, sublist[1]) for sublist in zip(chain_ids, entity_seqs) for x in sublist[0])
+    if isinstance(entity_seqs, list):
+        # Create dictionary of chain id (key) and sequences (value)
+        sequences = dict((x, sublist[1]) for sublist in
+                         zip(chain_ids, entity_seqs) for x in sublist[0])
+    else:
+        sequences = {chain_ids[0]: entity_seqs}
     return sequences
 
 def get_pdb_seq_from_atom(chain):

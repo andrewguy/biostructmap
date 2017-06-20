@@ -126,7 +126,7 @@ def _map_amino_acid_scale(chain, data, residues, _ref):
         float: Average propensity scale score over residues within a radius.
     """
     #Get a list of all amino acids within window, converted to one letter code
-    aminoacids = [seq1(chain[int(res)].resname, custom_map=protein_letters_3to1)
+    aminoacids = [seq1(chain[res].resname, custom_map=protein_letters_3to1)
                   for res in residues]
     scales = {'kd': ProtParamData.kd, # Kyte & Doolittle index of hydrophobicity
               # Flexibility

@@ -117,7 +117,12 @@ class DataMap(dict):
             if _data is None:
                 _data = default_no_value
             for atom in residue:
-                atom.set_bfactor(float(_data))
+                if atom.is_disordered():
+                    for altloc in atom.disordered_get_id_list():
+                        atom.disordered_select(altloc)
+                        atom.set_bfactor(float(_data))
+                else:
+                    atom.set_bfactor(float(_data))
         pdb_io = PDBIO()
         pdb_io.set_structure(_chain.chain)
         # Write chain to PDB file

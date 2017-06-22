@@ -42,8 +42,8 @@ value of Tajima's D.
 from __future__ import absolute_import, division, print_function
 
 from copy import deepcopy
-from tempfile import NamedTemporaryFile
 from os import path
+from tempfile import NamedTemporaryFile
 from Bio.PDB import DSSP, PDBIO, PDBParser, MMCIFParser
 from Bio import AlignIO
 from . import pdbtools, gentests

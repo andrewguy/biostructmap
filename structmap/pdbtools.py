@@ -8,8 +8,8 @@ from Bio.SeqIO import PdbIO
 from Bio.SeqUtils import seq1
 from Bio.Data.SCOPData import protein_letters_3to1
 from Bio.PDB.MMCIF2Dict import MMCIF2Dict
-from scipy.spatial import distance
 import numpy as np
+from scipy.spatial import distance
 from .seqtools import blast_sequences
 
 SS_LOOKUP_DICT = {

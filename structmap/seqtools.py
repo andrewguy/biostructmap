@@ -3,11 +3,11 @@ Part of the structmap package.
 """
 from __future__ import absolute_import, division, print_function
 
+from io import StringIO
+import operator
+import re
 import subprocess
 import tempfile
-import re
-import operator
-from io import StringIO
 from Bio import AlignIO
 from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML

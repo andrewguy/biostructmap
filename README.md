@@ -9,8 +9,6 @@ Additionally, Structmap allows for the incorporation of residue spatial-proximit
 
 ## Usage Examples
 
-A few usage examples:
-
 ### Calculate proportion of polymorphic residues within a radius
 
 A simple usage case may be identification of regions of the protein with a high percentage of polymorphic residues. If we are perhaps interested in antibody-antigen interaction, 15 Angstrom is a reasonable radius over which to average over.

@@ -11,17 +11,53 @@ Additionally, Structmap allows for the incorporation of residue spatial-proximit
 
 A few usage examples:
 
+### Calculate proportion of polymorphic residues within a radius
+
+A simple usage case may be identification of regions of the protein with a high percentage of polymorphic residues. If we are perhaps interested in antibody-antigen interaction, 15 Angstrom is a reasonable radius over which to average over.
+
 ```
 import structmap
 
+# Initialise structure object
 structure = structmap.Structure('1zrl.pdb', 'test_pdb_name')
 
+# The location of known polymorphisms relative to the PDB sequence (we are not
+# providing a reference sequence for this example)
 data = [200, 276, 300, 480, 367, 349]
 
+# Get the chain we are interested in - model '0' and chain 'A'.
 chain = structure[0]['A']
 
+# Map polymorphism data using a radius of 15 Angstrom. Results are returned
+# in a new object.
 results = chain.map(data, method='snps', ref=None, radius=15)
 
+# Use the results object to write data to a local PDB file, with data saved
+# in the B-factor column
+results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
+```
+
+### Calculation of average hydrophobicity for all surface exposed residues
+
+A slighly more complicated usage case may be the calculation of an average amino acid propensity scale, such as the Kyte & Doolittle index of hydrophobicity. Additionally, if we are solely interested in surface exposed residues, we may wish to restrict analysis to only residues with a relative solvent accessibility greater than 0.2.
+
+```
+import structmap
+
+# Initialise structure object
+structure = structmap.Structure('1zrl.pdb', 'test_pdb_name')
+
+# Get the chain we are interested in - model '0' and chain 'A'.
+chain = structure[0]['A']
+
+# For this method, the data parameter is a string which represents the amino
+# acid propensity scale we wish to use. Note the use of the optional rsa_range
+# parameter to restrict to surface exposed residues.
+results = chain.map(data='kd', method='aa_scale', ref=None, radius=15,
+                    rsa_range=(0.2, 1.0))
+
+# Use the results object to write data to a local PDB file, with data saved
+# in the B-factor column
 results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
 ```
 

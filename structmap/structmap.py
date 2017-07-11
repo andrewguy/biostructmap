@@ -76,6 +76,7 @@ class DataMap(dict):
                 parameters respectively, and are required. These are removed
                 from the list of kwargs before passing to dict __init__ method.
         """
+        # TODO make applicable to both an individual chain and a full structure
         self.chain = kw.pop('chain')
         self.params = kw.pop('params')
         super(DataMap, self).__init__(*args, **kw)
@@ -83,6 +84,8 @@ class DataMap(dict):
 
     def write_data_to_pdb_b_factor(self, default_no_value=0, outdir='',
                                    filename=None):
+                                  #TODO Add kwarg to specify whether we write
+                                  # all chains or just ones with data
         """Write mapped data to PDB B-factor column, and save as a PDB file.
 
         This method allows for data visualisation over the PDB structure
@@ -249,6 +252,7 @@ class Structure(object):
         self.models = {model.get_id():Model(self, model) for
                        model in self.structure}
         self.pdbname = pdbname
+        self._nearby = {}
 
 
     def __iter__(self):
@@ -290,6 +294,149 @@ class Structure(object):
         elif not self._mmcif:
             raise TypeError("Not an mmCIF file!")
         return self._mmcif_dict
+
+    def nearby(self, radius=15, atom='all'):
+        """Take a Bio.PDB Structure object, and find all residues within a
+        radius of a given residue.
+
+        Args:
+            radius (int/float): Radius within which to find nearby residues for
+                each residue in the structure.
+            atom (str): The atom with which to compute distances. By default
+                this is 'all', which gets all non-heterologous atoms. Other
+                potential options include 'CA', 'CB' etc. If an atom is not
+                found within a residue object, then method reverts to using
+                'CA'.
+
+        Returns:
+            dict: A dictionary containing a list of nearby residues for each
+                residue in the structure.
+        """
+        paramater_key = (radius, atom)
+        # Run on first model in structure
+        first_model = sorted(self.models)
+        #Calculate distance matrix and store it for retrieval in future queries.
+        if paramater_key not in self._nearby:
+            dist_map = pdbtools.nearby(self.structure[first_model], radius, atom)
+            self._nearby[paramater_key] = dist_map
+        return self._nearby[paramater_key]
+
+    def map(self, data, method='default', ref=None, radius=15, selector='all',
+            rsa_range=None, map_to_dna=False):
+        """Perform a mapping of some parameter or function to a pdb structure,
+        with the ability to apply the function over a '3D sliding window'.
+
+        The residues within a radius of a central residue are passed to the
+        mapping function, which computes an output value for the central
+        residue. This is performed for each residue in the structure.
+        For calculation of Tajima's D, reference sequence is a genomic sequence.
+
+        Args:
+            data (dict/object): Generally a dictionary containing data to
+                to be mapped over structure. The exact form for this data
+                depends on the function being used to map data - each mapping
+                function is passed this data object.
+            method (str): A string representing a method for mapping data.
+                Internally, these strings are keys for a dictionary of
+                functions, and these can be extended with custom user-provided
+                functions if desired.
+            ref (dict): A reference protein sequence for each chain.
+                For calculation of Tajima's D, this is a reference genomic
+                sequence. Data to be mapped should be aligned/referenced
+                according to this reference sequence.
+            radius (int/float, optional): The radius (Angstrom) over which to
+                select nearby residues for inclusion within each 3D window.
+                This defaults to 15 Angstrom, which is the typical maximum
+                dimension for an antibody epitope.
+            selector (str, optional): A string indicating the atom with which
+                to compute distances between residues. By default this is 'all',
+                which gets all non-heterologous atoms. Other potential options
+                include 'CA', 'CB' etc. If an atom is not found within a residue
+                object, then the selection method reverts to using 'CA'.
+            rsa_range (tuple, optional): A tuple giving (minimum, maximum)
+                values of relative solvent accessibility with which to filter
+                all residues on (ie. map method will ignore all residues
+                outside this range). This is useful when wanting to examine only
+                surface exposed residues.
+            map_to_dna (bool, optional): Set True if the mapping method involves
+                aligning to a DNA sequence. Defaults to False.
+
+        Returns:
+            structmap.DataMap: A dictionary-like object which contains mapped
+                values for each residue (key). This object extends the standard
+                dict type, adding methods to allow writing of data to PDB
+                B-factor columns for easy viewing using Pymol or other similar
+                programs.
+        """
+        #Note: This method attempts to deal with 3 different ways of identifying
+        #residue position: i) Within a PDB file, residues are labelled with a
+        #number, which should increment according to position in sequence, but
+        #is not necessarily gapless, and may include negative numbering in
+        #order to preserve alignment with similar sequences. ii) Residue
+        #numbering according to the position of the residue within the
+        #protein sequence extracted from the PDB file. That is, the first
+        #residue in the sequence is numbering '1', and incrementing from there.
+        #iii) Residue numbering according to a reference sequence provided, or
+        #according to a dna sequence (which could include introns).
+
+        methods = {"default":_default_mapping,
+                   "tajimasd":_tajimas_d,
+                   "snps": _snp_mapping,
+                   "aa_scale": _map_amino_acid_scale}
+        #Create a map of pdb sequence index (1-indexed) to pdb residue
+        #numbering from file
+        is_mmcif = self._mmcif
+        if is_mmcif:
+            mmcif_dict = self.mmcif_dict()
+            _, _seq_index_to_pdb_numb = mmcif_sequence_to_res_id(mmcif_dict)
+            # TODO Left off here...
+            #TODO extrapolate to all chains
+            seq_index_to_pdb_numb = {key: value[1] for key, value in
+                                     _seq_index_to_pdb_numb.items() if
+                                     value[0] == self.get_id()}
+        else:
+            seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
+        #Generate a map of nearby residues for each residue in pdb file. numbering
+        #is according to pdb residue numbering from file
+        residue_map = self.nearby(radius=radius, atom=selector)
+        results = {}
+
+        # If method involves mapping to a genome, then we presume the data given
+        # contains a multiple sequence alignment, and we use the first sequence
+        # as reference. Note that it would be better for the user to explicitly
+        # provide a reference genome in most cases.
+        if ref is None and map_to_dna:
+            ref = data[0]
+        elif ref is None:
+            ref = self.sequence
+        #Generate mapping of pdb sequence index to dna sequence
+        if map_to_dna:
+            # Small hack to get string from a Bio.Seq object.
+            ref_seq = ''.join([x for x in ref])
+            pdbindex_to_ref = align_protein_to_dna(self.sequence, ref_seq)
+        #Generate mapping of pdb sequence index to reference sequence (also indexed by position)
+        else:
+            pdbindex_to_ref, _ = blast_sequences(self.sequence, ref)
+        if method in methods:
+            method = methods[method]
+        #Finally, map pdb numbering by file to the reference sequence
+        #(dna or protein) provided, as long as the residues exists within the PDB
+        #structure (ie has coordinates)
+        pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x in
+                         pdbindex_to_ref if x in seq_index_to_pdb_numb}
+        results = {}
+        #For each residue within the sequence, apply a function and return result.
+        for residue in residue_map:
+            if rsa_range:
+                residues = self._filter_rsa(residue_map[residue], rsa_range)
+                if residue not in residues:
+                    results[residue] = None
+                    continue
+            else:
+                residues = residue_map[residue]
+            results[residue] = method(self, data, residues, pdbnum_to_ref)
+        params = {'radius':radius, 'selector': selector}
+        return DataMap(results, chain=self, params=params)
 
 
 class Model(object):

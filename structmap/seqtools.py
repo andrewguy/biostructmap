@@ -155,15 +155,10 @@ def blast_sequences(comp_seq, ref_seq):
         dict: A dictionary mapping reference sequence numbering (key) to
             comparison sequence numbering (value)
     '''
-    if not isinstance(comp_seq, str):
-        comp_seq = ''.join([x for x in comp_seq])
-    if not isinstance(ref_seq, str):
-        ref_seq = ''.join([x for x in ref_seq])
-
     with tempfile.NamedTemporaryFile(mode='w') as comp_seq_file, \
          tempfile.NamedTemporaryFile(mode='w') as ref_seq_file:
-        comp_seq_file.write(">\n" + comp_seq + "\n")
-        ref_seq_file.write(">\n" + ref_seq + "\n")
+        comp_seq_file.write(">\n" + str(comp_seq) + "\n")
+        ref_seq_file.write(">\n" + str(ref_seq) + "\n")
         ref_seq_file.flush()
         comp_seq_file.flush()
         blastp_cline = NcbiblastpCommandline(query=comp_seq_file.name,

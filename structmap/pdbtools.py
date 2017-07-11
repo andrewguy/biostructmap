@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function
 from Bio.SeqIO import PdbIO
 from Bio.SeqUtils import seq1
 from Bio.Data.SCOPData import protein_letters_3to1
-from Bio.PDB.MMCIF2Dict import MMCIF2Dict
+from Bio.PDB.Polypeptide import PPBuilder
 import numpy as np
 from scipy.spatial import distance
 from .seqtools import blast_sequences
@@ -31,11 +31,11 @@ SS_LOOKUP_DICT = {
     7: '-'
     }
 
-def _euclidean_distance_matrix(chain, selector='all'):
-    """Compute the Euclidean distance matrix for all atoms in a pdb chain.
+def _euclidean_distance_matrix(model, selector='all'):
+    """Compute the Euclidean distance matrix for all atoms in a pdb model.
 
     Args:
-        chain (Chain): Bio.PDB Chain object.
+        model (Model): Bio.PDB Model object.
         selector (str): The atom in each residue with which to compute
             distances. The default setting is 'all', which gets all
             non-heterologous atoms. Other potential options include 'CA', 'CB'
@@ -48,13 +48,16 @@ def _euclidean_distance_matrix(chain, selector='all'):
     """
     reference = []
     coords = []
+    # Get all non-HET residues from all chains
+    residues = [res for chain in model for res in chain if
+                res.get_id()[0] == ' ']
     #Filter on non-HET atoms
-    for residue in (x for x in chain if x.get_id()[0] == ' '):
+    for residue in residues:
         #If selecting based on all atoms within residue
         if selector == 'all':
             for atom in residue:
                 coords.append(atom.get_coord())
-                reference.append(atom.get_full_id()[3])
+                reference.append(atom.get_full_id()[2:4])
         #If measuring distance on particular atoms
         else:
             if selector in residue:
@@ -66,7 +69,7 @@ def _euclidean_distance_matrix(chain, selector='all'):
             else:
                 continue
             coords.append(residue[select_atom].get_coord())
-            reference.append(residue[select_atom].get_full_id()[3])
+            reference.append(residue[select_atom].get_full_id()[2:4])
     #Convert to a np array, and compute Euclidean distance.
     coord_array = np.array(coords)
     euclid_mat = distance.pdist(coord_array, 'euclidean')
@@ -76,17 +79,64 @@ def _euclidean_distance_matrix(chain, selector='all'):
     return euclid_mat, ref_array
 
 
+def nearby(model, radius=15, selector='all'):
+    """
+    Takes a Bio.PDB model object, and find all residues within a radius of a
+    given residue.
+
+    Args:
+        model (Model): Bio.PDB Model object.
+        radius (float/int): The radius (Angstrom) over which to select nearby
+            residues
+        selector (str): The atom in each residue with which to compute
+            distances. The default setting is 'all', which gets all
+            non-heterologous atoms. Other potential options include 'CA', 'CB'
+            etc. If an atom is not found within a residue object, then method
+            reverts to using 'CA'.
+    Returns:
+        dict: A dictionary containing nearby residues for each
+            residue in the chain.
+    """
+    #Setup variables
+    ref_dict = {}
+    euclidean_distance, ref = _euclidean_distance_matrix(model, selector)
+    within_radius = euclidean_distance <= radius
+    # 1-indexed as 0 means not within range.
+    near_map = within_radius * np.arange(1, len(ref)+1)
+    #Iterate over all atoms in Euclidean distance matrix.
+    for i, atom in enumerate(near_map):
+        if atom[i] not in ref_dict:
+            ref_dict[atom[i]] = atom[np.nonzero(atom)]
+        else:
+            ref_dict[atom[i]] = np.append(ref_dict[atom[i]],
+                                          atom[np.nonzero(atom)])
+    _ref_dict = {}
+    # Go from numerical index to residue id
+    for key, value in ref_dict.items():
+        _ref_dict[ref[key-1]] = {ref[x-1] for x in value} | _ref_dict.get(ref[key-1], set())
+    return _ref_dict
+
+
 def mmcif_sequence_to_res_id(mmcif_dict):
     """Create a lookup from mmcif sequence id to a pdb residue ID and vice versa.
 
     This allows mapping between reference PDB sequences and BioPython
     residue ids.
+
+    Args:
+        mmcif_dict (dict): An mmcif dictionary from a Bio.PDB.Structure object.
+
+    Returns:
+        dict: Dictionary in the form {full Bio.PDB residue id: (chain,
+              mmcif sequence id)}.
+        dict: Dictionary in the form {(chain, mmcif sequence id):
+              full Bio.PDB residue id}
     """
     _seq_id_list = mmcif_dict['_atom_site.label_seq_id']
     seq_id_list = []
-    for x in _seq_id_list:
+    for seq_id in _seq_id_list:
         try:
-            seq_id_list.append(int(x))
+            seq_id_list.append(int(seq_id))
         except ValueError:
             seq_id_list.append(None)
     # Parse dictionary to extract sequences from mmCIF file
@@ -109,49 +159,12 @@ def mmcif_sequence_to_res_id(mmcif_dict):
     # Residue ID as used by Bio.PDB
     bio_residue_ids = [*zip(het_flag, auth_seq_id_list, icode_flag)]
     full_ids = list(zip(auth_chain_id_list, bio_residue_ids))
+    chain_and_seq_id_list = list(zip(auth_chain_id_list, seq_id_list))
     full_id_to_poly_seq_index = {key: value for key, value in
-                                 zip(full_ids, seq_id_list)}
+                                 zip(full_ids, chain_and_seq_id_list)}
     poly_seq_index_to_full_id = {value: key for key, value in
                                  full_id_to_poly_seq_index.items() if value}
     return full_id_to_poly_seq_index, poly_seq_index_to_full_id
-
-
-def nearby(chain, radius=15, selector='all'):
-    """
-    Takes a Bio.PDB chain object, and find all residues within a radius of a
-    given residue.
-
-    Args:
-        chain (Chain): Bio.PDB Chain object.
-        radius (float/int): The radius (Angstrom) over which to select nearby
-            residues
-        selector (str): The atom in each residue with which to compute
-            distances. The default setting is 'all', which gets all
-            non-heterologous atoms. Other potential options include 'CA', 'CB'
-            etc. If an atom is not found within a residue object, then method
-            reverts to using 'CA'.
-    Returns:
-        dict: A dictionary containing nearby residues for each
-            residue in the chain.
-    """
-    #Setup variables
-    ref_dict = {}
-    euclidean_distance, ref = _euclidean_distance_matrix(chain, selector)
-    within_radius = euclidean_distance <= radius
-    # 1-indexed as 0 means not within range.
-    near_map = within_radius * np.arange(1, len(ref)+1)
-    #Iterate over all atoms in Euclidean distance matrix.
-    for i, atom in enumerate(near_map):
-        if atom[i] not in ref_dict:
-            ref_dict[atom[i]] = atom[np.nonzero(atom)]
-        else:
-            ref_dict[atom[i]] = np.append(ref_dict[atom[i]],
-                                          atom[np.nonzero(atom)])
-    _ref_dict = {}
-    # Go from numerical index to residue id
-    for key, value in ref_dict.items():
-        _ref_dict[ref[key-1]] = {ref[x-1] for x in value} | _ref_dict.get(ref[key-1], set())
-    return _ref_dict
 
 
 def get_pdb_seq(filename):
@@ -243,6 +256,7 @@ def get_pdb_seq_from_atom(chain):
     Returns:
         str: Protein sequence.
     """
+    # TODO Deprecate and revert to using polypeptide builder.
     seq_dict = {}
     for residue in chain.get_residues():
         res_num = int(residue.id[1])
@@ -252,31 +266,35 @@ def get_pdb_seq_from_atom(chain):
     pdb_sequence = [seq_dict[x] for x in sorted(seq_dict)]
     return ''.join([x for x in pdb_sequence])
 
-def match_pdb_residue_num_to_seq(chain, ref=None):
+def match_pdb_residue_num_to_seq(model, ref=None):
     """Match PDB residue numbering (as given in PDB file) to
     a reference sequence (can be pdb sequence) numbered by index.
 
     Reference sequence is 1-indexed (and is indexed as such in output).
 
     Args:
-        chain: A Bio.PDB chain object.
-        ref (str): A reference protein sequence. Defaults to protein sequence
+        model: A Structmap Model object.
+        ref (dict): A dictionary containing reference protein sequences for each
+            chain in the protein structure. Defaults to the protein sequences
             given in PDB file.
     Returns:
         dict: A dictionary mapping reference sequence index (key) to
-            residue numbering as given in the PDB file (value).
+            residue numbering as given in the PDB file (value). For example,
+            we might have a key of ('A', 17) for the 17th residue in the
+            reference sequence for chain 'A', with a value of
+            ('A', (' ', 273, ' ')) that represents the Bio.PDB identifier for
+            the corresponding residue.
     """
+    ppb = PPBuilder()
+    polypeptides = ppb.build_peptides(model.parent().structure)
     if ref is None:
-        ref = chain.sequence
-    seq_dict = {}
-    for residue in chain.chain.get_residues():
-        aminoacid = seq1(residue.resname, custom_map=protein_letters_3to1)
-        seq_dict[residue.id] = aminoacid
-    pdb_sequence = [seq_dict[x] for x in sorted(seq_dict, key=lambda x: int(x[1]))]
-    pdb_numbering = [x for x in sorted(seq_dict, key=lambda x: int(x[1]))]
-    pdb_to_ref, _ref_to_pdb = blast_sequences(pdb_sequence, ref)
+        ref = model.parent().sequences
     output = {}
-    for i, pdb_num in enumerate(pdb_numbering):
-        if i+1 in pdb_to_ref:
-            output[pdb_to_ref[i+1]] = pdb_num
+    for peptide in polypeptides:
+        peptide_sequence = peptide.get_sequence()
+        # Presume that peptide belongs to a single chain
+        chain_id = peptide[0].get_full_id()[2]
+        _, ref_to_pdb = blast_sequences(peptide_sequence, ref[chain_id])
+        for ref_pos, pdb_pos in ref_to_pdb.items():
+            output[(chain_id, ref_pos)] = peptide[pdb_pos - 1].get_full_id()[2:4]
     return output

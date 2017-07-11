@@ -623,3 +623,25 @@ class TestStructmapMMCIF(TestCase):
         self.assertDictEqual(_ss_dict, chain.secondary_structure())
         self.assertDictEqual(_ss_dict_numeric,
                              chain.secondary_structure(numeric_ss_code=True))
+
+
+class TestStructureMapMethod(TestCase):
+    def setUp(self):
+        self.test_file = './tests/pdb/4nuv.cif'
+        self.structure = structmap.Structure(self.test_file, mmcif=True)
+
+    def test_default_mapping_on_structure(self):
+        ref_seq = (
+              'ASNTVMKNCNYKRKRRERDWDCNTKKDVCIPDRRYQLCMKELTNLVNNTDT'
+              'NFHRDITFRKLYLKRKLIYDAAVEGDLLLKLNNYRYNKDFCKDIRWSLGDF'
+              'GDIIMGTDMEGIGYSKVVENNLRSIFGTDEKAQQRRKQWWNESKAQIWTAM'
+              'MYSVKKRLKGNFIWICKLNVAVNIEPQIYRWIREWGRDYVSELPTEVQKLK'
+              'EKCDGKINYTDKKVCKVPPCQNACKSYDQWITRKKNQWDVLSNKFISVKNA'
+              'EKVQTAGIVTPYDILKQELDEFNEVAFENEINKRDGAYIELCVCSVEEAKK'
+              'NTQEVVTNVDN')
+        reference_seqs = {'A': ref_seq, 'B': ref_seq}
+        data = {'A': [1,2,3,4], 'B': [1,2,3,4]}
+
+        data = self.structure.map(data=None, method='default',
+                                  ref=reference_seqs)
+        #TODO

@@ -59,6 +59,24 @@ results = chain.map(data='kd', method='aa_scale', ref=None, radius=15,
 results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
 ```
 
+### Calculation of Tajima's D using protein structural information
+
+We can also use the structmap package to calculate a modified Tajima's D value which incorporates protein structural information --- essentially using a 3D sliding window instead of the standard 2D sliding window often applied over a protein sequence.
+
+```
+from structmap import SequenceAlignment
+
+# Read in multiple sequence alignment data
+msa_data = SequenceAlignment('seq_align.fsa')
+
+# Reference seq might be the first sequence in the multiple sequence alignment
+reference_seq = msa_data[0]
+
+results = chain.map(data=msa_data, method='tajimas_d', ref=reference_seq,
+                    radius=15)
+
+results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
+```
 ## Prerequisites
 
 Installing the Structmap package requires both an install of the main package, as well as install of a few external binaries (NCBI BLAST+, Exonerate and DSSP).

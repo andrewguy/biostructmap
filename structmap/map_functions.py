@@ -75,7 +75,10 @@ def _default_mapping(_chain, data, residues, ref):
     #Convert PDB residue numbering to reference numbering
     reference_residues = [ref[res] for res in residues]
     data_points = [data[res] for res in reference_residues]
-    average = np.mean(data_points)
+    if data_points:
+        average = np.mean(data_points)
+    else:
+        average = None
     return average
 
 def _snp_mapping(_chain, data, residues, ref):
@@ -123,7 +126,7 @@ def _map_amino_acid_scale(chain, data, residues, _ref):
         float: Average propensity scale score over residues within a radius.
     """
     #Get a list of all amino acids within window, converted to one letter code
-    aminoacids = [seq1(chain[int(res)].resname, custom_map=protein_letters_3to1)
+    aminoacids = [seq1(chain[res].resname, custom_map=protein_letters_3to1)
                   for res in residues]
     scales = {'kd': ProtParamData.kd, # Kyte & Doolittle index of hydrophobicity
               # Flexibility

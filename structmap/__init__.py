@@ -8,5 +8,4 @@ such as Tajima's D.
 from .structmap import Structure, SequenceAlignment
 
 __version__ = '0.2.0'
-__all__ = ["structmap", "seqtools", "pdbtools", "gentests", "utils",
-           "map_functions"]
+__all__ = ["structmap", "seqtools", "pdbtools", "gentests", "map_functions"]

@@ -3,11 +3,11 @@ Part of the structmap package.
 """
 from __future__ import absolute_import, division, print_function
 
+from io import StringIO
+import operator
+import re
 import subprocess
 import tempfile
-import re
-import operator
-from io import StringIO
 from Bio import AlignIO
 from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML
@@ -80,7 +80,7 @@ def _sliding_window_var_sites(seq_align, window, step=3):
 
     alignment = _join_alignments(initial_sites)
     yield alignment
-    #Add/remove sites from the end/start of window as appropriate.
+    # Add/remove sites from the end/start of window as appropriate.
     for i in range(0, (length-window), step):
         for j in range(step):
             if i + j in align_dict:

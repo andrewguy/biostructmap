@@ -76,16 +76,13 @@ class DataMap(dict):
                 parameters respectively, and are required. These are removed
                 from the list of kwargs before passing to dict __init__ method.
         """
-        # TODO make applicable to both an individual chain and a full structure
-        self.chain = kw.pop('chain')
+        self.structure = kw.pop('structure')
         self.params = kw.pop('params')
         super(DataMap, self).__init__(*args, **kw)
 
 
     def write_data_to_pdb_b_factor(self, default_no_value=0, outdir='',
                                    filename=None):
-                                  #TODO Add kwarg to specify whether we write
-                                  # all chains or just ones with data
         """Write mapped data to PDB B-factor column, and save as a PDB file.
 
         This method allows for data visualisation over the PDB structure
@@ -113,23 +110,24 @@ class DataMap(dict):
         # Make copy of chain object. This may fail in earlier versions of
         # Biopython if chain contains disorded residues. We do this so that
         # we are not overwriting B-factor values in original PDB chain.
-        _chain = deepcopy(self.chain)
-        _structure = _chain.parent().parent()
+        _structure = deepcopy(self.structure)
+        first_model = sorted(_structure.models)[0]
         #Set all B-factor fields to zeros/default value
-        for residue in _chain:
-            _data = self.get(residue.get_id(), default_no_value)
-            if _data is None:
-                _data = default_no_value
-            for atom in residue:
-                if atom.is_disordered():
-                    for altloc in atom.disordered_get_id_list():
-                        atom.disordered_select(altloc)
+        for chain in _structure[first_model].chains.values():
+            for residue in chain:
+                _data = self.get(residue.get_full_id()[2:4], default_no_value)
+                if _data is None:
+                    _data = default_no_value
+                for atom in residue:
+                    if atom.is_disordered():
+                        for altloc in atom.disordered_get_id_list():
+                            atom.disordered_select(altloc)
+                            atom.set_bfactor(float(_data))
+                    else:
                         atom.set_bfactor(float(_data))
-                else:
-                    atom.set_bfactor(float(_data))
         pdb_io = PDBIO()
-        pdb_io.set_structure(_chain.chain)
-        # Write chain to PDB file
+        pdb_io.set_structure(_structure.structure)
+        # Write structure to PDB file
         if filename is None:
             filename = _structure.pdbname + '_' + self._parameter_string() + '.pdb'
         pdb_io.save(path.join(outdir, filename))
@@ -153,14 +151,14 @@ class DataMap(dict):
         #a residue number.
         with open(output, 'w') as f:
             for res in sorted(self):
-                residue = self.chain[int(res)]
+                residue = self.structure[res]
                 for atom in residue:
                     data_pt = [str(x) for x in [atom.serial_number, self[res]]]
                     line = sep.join(data_pt) + '\n'
                     f.write(line)
         return
 
-    def write_to_residue(self, output, sep=',', ref=None): #TODO write tests
+    def write_to_residue(self, output, sep=',', ref=None): #TODO write tests & alter to Structure
         """Write score for each residue in a structure to a file, based on
         a data dictionary mapping output score to residue number.
 
@@ -299,6 +297,9 @@ class Structure(object):
         """Take a Bio.PDB Structure object, and find all residues within a
         radius of a given residue.
 
+        Note that this method uses the first model within the structure for
+        all distance calculations.
+
         Args:
             radius (int/float): Radius within which to find nearby residues for
                 each residue in the structure.
@@ -314,7 +315,7 @@ class Structure(object):
         """
         paramater_key = (radius, atom)
         # Run on first model in structure
-        first_model = sorted(self.models)
+        first_model = sorted(self.models)[0]
         #Calculate distance matrix and store it for retrieval in future queries.
         if paramater_key not in self._nearby:
             dist_map = pdbtools.nearby(self.structure[first_model], radius, atom)
@@ -378,29 +379,26 @@ class Structure(object):
         #residue in the sequence is numbering '1', and incrementing from there.
         #iii) Residue numbering according to a reference sequence provided, or
         #according to a dna sequence (which could include introns).
-
         methods = {"default":_default_mapping,
                    "tajimasd":_tajimas_d,
                    "snps": _snp_mapping,
                    "aa_scale": _map_amino_acid_scale}
-        #Create a map of pdb sequence index (1-indexed) to pdb residue
-        #numbering from file
+        if method in methods:
+            method = methods[method]
+
+        # Generate a map of nearby residues for each residue in pdb file.
+        # Numbering is according to pdb residue numbering from file
+        residue_map = self.nearby(radius=radius, atom=selector)
+
+        # Create a map of pdb sequence index (1-indexed) to pdb residue
+        # numbering from file
         is_mmcif = self._mmcif
         if is_mmcif:
             mmcif_dict = self.mmcif_dict()
             _, _seq_index_to_pdb_numb = mmcif_sequence_to_res_id(mmcif_dict)
-            # TODO Left off here...
-            #TODO extrapolate to all chains
-            seq_index_to_pdb_numb = {key: value[1] for key, value in
-                                     _seq_index_to_pdb_numb.items() if
-                                     value[0] == self.get_id()}
         else:
-            seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
-        #Generate a map of nearby residues for each residue in pdb file. numbering
-        #is according to pdb residue numbering from file
-        residue_map = self.nearby(radius=radius, atom=selector)
-        results = {}
-
+            seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self,
+                                                                 self.sequences)
         # If method involves mapping to a genome, then we presume the data given
         # contains a multiple sequence alignment, and we use the first sequence
         # as reference. Note that it would be better for the user to explicitly
@@ -408,17 +406,16 @@ class Structure(object):
         if ref is None and map_to_dna:
             ref = data[0]
         elif ref is None:
-            ref = self.sequence
+            ref = self.sequences
         #Generate mapping of pdb sequence index to dna sequence
+        # TODO Modify these methods to deal with multiple chains
         if map_to_dna:
-            # Small hack to get string from a Bio.Seq object.
-            ref_seq = ''.join([x for x in ref])
-            pdbindex_to_ref = align_protein_to_dna(self.sequence, ref_seq)
+            pdbindex_to_ref = align_protein_to_dna(self.sequences, ref)
         #Generate mapping of pdb sequence index to reference sequence (also indexed by position)
         else:
-            pdbindex_to_ref, _ = blast_sequences(self.sequence, ref)
-        if method in methods:
-            method = methods[method]
+            pdbindex_to_ref, _ = blast_sequences(self.sequences, ref)
+
+
         #Finally, map pdb numbering by file to the reference sequence
         #(dna or protein) provided, as long as the residues exists within the PDB
         #structure (ie has coordinates)

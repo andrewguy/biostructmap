@@ -60,19 +60,19 @@ class DataMap(dict):
     class, adding a few methods to allow correspondence between data and PDB
     chain object.
 
-    Should be called as `DataMap(results, chain=chain, params=params)`,
+    Should be called as `DataMap(results, structure=structure, params=params)`,
     where `results` would be a dictionary of mapped data over a PDB chain for a
     particular set of parameters.
     '''
     def __init__(self, *args, **kw):
-        """Initialise a DataMap object, which stores mapped to some PDB object
-        as a dictionary, but also provides a link to original chain object
+        """Initialise a DataMap object, which stores data mapped to a PDB
+        structure as a dictionary, but also provides a link to original chain object
         and parameters used to generate data.
 
         Args:
             *args: Standard dict args
-            **kwargs: Standard dict kwargs. Kwargs `chain` and `params` are
-                reserved for reference to the PDB chain object and analysis
+            **kwargs: Standard dict kwargs. Kwargs `structure` and `params` are
+                reserved for reference to the PDB structure object and analysis
                 parameters respectively, and are required. These are removed
                 from the list of kwargs before passing to dict __init__ method.
         """
@@ -107,9 +107,10 @@ class DataMap(dict):
         Returns:
             None
         """
-        # Make copy of chain object. This may fail in earlier versions of
-        # Biopython if chain contains disorded residues. We do this so that
-        # we are not overwriting B-factor values in original PDB chain.
+        # Make copy of structure object. This may fail in earlier versions of
+        # Biopython if the structure contains disordered residues.
+        # We do this so that we are not overwriting B-factor values in
+        # original PDB chain.
         _structure = deepcopy(self.structure)
         first_model = sorted(_structure.models)[0]
         #Set all B-factor fields to zeros/default value
@@ -386,6 +387,11 @@ class Structure(object):
         if method in methods:
             method = methods[method]
 
+        if map_to_dna and ref is None:
+            raise ValueError("Must provide a reference DNA sequence if you "\
+                             "are mapping to DNA.")
+        elif ref is None:
+            ref = self.sequences
         # Generate a map of nearby residues for each residue in pdb file.
         # Numbering is according to pdb residue numbering from file
         residue_map = self.nearby(radius=radius, atom=selector)
@@ -399,21 +405,18 @@ class Structure(object):
         else:
             seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self,
                                                                  self.sequences)
-        # If method involves mapping to a genome, then we presume the data given
-        # contains a multiple sequence alignment, and we use the first sequence
-        # as reference. Note that it would be better for the user to explicitly
-        # provide a reference genome in most cases.
-        if ref is None and map_to_dna:
-            ref = data[0]
-        elif ref is None:
-            ref = self.sequences
-        #Generate mapping of pdb sequence index to dna sequence
-        # TODO Modify these methods to deal with multiple chains
-        if map_to_dna:
-            pdbindex_to_ref = align_protein_to_dna(self.sequences, ref)
-        #Generate mapping of pdb sequence index to reference sequence (also indexed by position)
-        else:
-            pdbindex_to_ref, _ = blast_sequences(self.sequences, ref)
+
+        pdb_index_to_ref = {}
+        # For each protein chain, map provided reference sequence to PDB residue identifier.
+        # Output should be in the form {('A', 17): ('A', (' ', 24, ' ')), ...}
+        for chain_id, ref_seq in ref.items():
+            if map_to_dna:
+                chain_pdbindex_to_ref = align_protein_to_dna(self.sequences[chain_id], ref_seq)
+            #Generate mapping of pdb sequence index to reference sequence (also indexed by position)
+            else:
+                chain_pdbindex_to_ref, _ = blast_sequences(self.sequences[chain_id], ref_seq)
+            pdb_index_to_ref.update({(chain_id, key): value for
+                                     key, value in chain_pdbindex_to_ref})
 
 
         #Finally, map pdb numbering by file to the reference sequence
@@ -422,6 +425,8 @@ class Structure(object):
         pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x in
                          pdbindex_to_ref if x in seq_index_to_pdb_numb}
         results = {}
+
+        #TODO fix rsa function to apply to all chains.
         #For each residue within the sequence, apply a function and return result.
         for residue in residue_map:
             if rsa_range:

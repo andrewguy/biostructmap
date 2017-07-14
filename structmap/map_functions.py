@@ -34,6 +34,8 @@ import numpy as np
 from .seqtools import _construct_sub_align
 from . import gentests
 
+#TODO Update mapping functions to reflect new residue ids (i.e. also specifying chains)
+
 def _count_residues(_chain, _data, residues, _ref):
     """Simple function to count the number of residues within a radius.
 

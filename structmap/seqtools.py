@@ -195,6 +195,46 @@ def blast_sequences(comp_seq, ref_seq):
     return pdb_to_ref, ref_to_pdb
 
 
+def _construct_sub_align_from_chains(alignments, codons, fasta=False):
+    """
+    Take a list of structmap multiple sequence alignment objects, and
+    return a subset of codons based on an input list in the form
+    [('A',(1,2,3)),('B',(4,5,6)),...].
+
+    Notes:
+        Codons should be 1-indexed, not 0-indexed.
+
+    Args:
+        alignment (dict): A dictionary of multiple sequence alignment objects
+            accessed by a tuple of chain ids for each alignment.
+        codons (list): a subset of codons in a list of the form [(1,2,3),...]
+        fasta (bool, optional): If True, will return multiple sequence
+            alignment as a string in FASTA format.
+
+    Returns:
+        MulitpleSequenceAlignment: A subset of the initial alignment as a
+            multiple sequence alignment object. If the fasta kwarg is set to
+            True, returns a string instead.
+    """
+    chain_alignments = {}
+    chain_strains = {}
+    for key, alignment in alignments.items():
+        chain_alignments[key] = alignment.get_alignment_position_dict()
+        chain_strains[key] = alignment.get_isolate_ids()
+    codons = [(chain_id, x) for chain_id, sublist in codons for x in sublist]
+    sub_align = []
+    for codon in codons:
+        #List is zero indexed, hence the need to call codon-1
+        sub_align.append(list(chain_alignments[codon[0]][codon[1]-1]))
+    _sub_align_transpose = zip(*sub_align)
+    sub_align_transpose = [''.join(x) for x in _sub_align_transpose]
+    if fasta:
+        strains = list(chain_strains.values())[0]
+        fasta_out = ''.join('>{}\n{}\n'.format(*t) for t in
+                            zip(strains, sub_align_transpose))
+        return fasta_out
+    return sub_align_transpose
+
 def _construct_sub_align(alignment, codons, fasta=False):
     """
     Take a structmap multiple sequence alignment object, and return a

@@ -26,10 +26,11 @@ class TestPdbtools(TestCase):
         pdbname = self.test_pdb_file
         #Get Bio.PDB structure
         self.test_structure = parser.get_structure(pdbname, self.test_pdb_file)
-        self.test_chain = self.test_structure[0]['A']
+        self.test_model = self.test_structure[0]
+        self.test_chain = self.test_model['A']
 
     def test_euclidean_matrix_calculation(self):
-        mat = _euclidean_distance_matrix(self.test_chain, selector="all")
+        mat = _euclidean_distance_matrix(self.test_model, selector="all")
         length_to_match = 4908
         self.assertEqual(len(mat[0]), length_to_match)
         self.assertEqual(len(mat[1]), length_to_match)
@@ -38,7 +39,7 @@ class TestPdbtools(TestCase):
         self.assertTrue(check_diagonal)
 
     def test_euclidean_matrix_calculation_with_CA(self):
-        mat = _euclidean_distance_matrix(self.test_chain, selector="CA")
+        mat = _euclidean_distance_matrix(self.test_model, selector="CA")
         length_to_match = 583
         self.assertEqual(len(mat[0]), length_to_match)
         self.assertEqual(len(mat[1]), length_to_match)
@@ -47,7 +48,7 @@ class TestPdbtools(TestCase):
         self.assertTrue(check_diagonal)
 
     def test_euclidean_matrix_calculation_with_CB(self):
-        mat = _euclidean_distance_matrix(self.test_chain, selector="CB")
+        mat = _euclidean_distance_matrix(self.test_model, selector="CB")
         length_to_match = 583
         self.assertEqual(len(mat[0]), length_to_match)
         self.assertEqual(len(mat[1]), length_to_match)
@@ -58,45 +59,46 @@ class TestPdbtools(TestCase):
     def test_nearby_residues_function_with_CA(self):
         radius = 15
         selector = 'CA'
-        test_residue = (' ', 57, ' ')
+        test_residue = ('A',(' ', 57, ' '))
         test_residue_to_match = [48,  49,  50,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,
                                  62,  63,  64,  65,  66,  98,  99, 101, 102, 103, 104, 116, 117,
                                  118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 136,
                                  137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 151]
-        residues_to_match = {(' ', x, ' ') for x in test_residue_to_match}
-        nearby = pdbtools.nearby(self.test_chain, radius, selector)
+        residues_to_match = {('A',(' ', x, ' ')) for x in test_residue_to_match}
+        nearby = pdbtools.nearby(self.test_model, radius, selector)
         result = nearby[test_residue]
         self.assertEqual(result, residues_to_match)
 
     def test_nearby_residues_function_with_all_atoms(self):
         radius = 15
         selector = 'all'
-        test_residue = (' ', 57, ' ')
+        test_residue = ('A',(' ', 57, ' '))
         test_residue_to_match = [8, 11, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
                                  56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
                                  69, 98, 99, 100, 101, 102, 103, 104, 105, 115, 116, 117, 118,
                                  119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
                                  132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144,
                                  145, 146, 147, 148, 149, 150, 151, 152, 154]
-        residues_to_match = {(' ', x, ' ') for x in test_residue_to_match}
-        nearby = pdbtools.nearby(self.test_chain, radius, selector)
+        residues_to_match = {('A',(' ', x, ' ')) for x in test_residue_to_match}
+        nearby = pdbtools.nearby(self.test_model, radius, selector)
         result = nearby[test_residue]
         self.assertEqual(result, residues_to_match)
 
     def test_get_pdb_sequence(self):
         filename = './tests/pdb/1zrl.pdb'
         sequence = pdbtools.get_pdb_seq(filename)
-        to_match = {'A': 'GRQTSSNNEVLSNCREKRKGMKWDCKKKNDRSNYVCIPDRRIQLCIVNLAII'+
-                        'KTYTKETMKDHFIEASKKESQLLLKKNDNKYNSKFCNDLKNSFLDYGHLAMGN'+
-                        'DMDFGGYSTKAENKIQEVFKGAHGEISEHKIKNFRKKWWNEFREKLWEAMLSE'+
-                        'HKNNINNCKNIPQEELQITQWIKEWHGEFLL'+
-              'ERDNRAKLPKSKCKNNALYEACEKECIDPCMKYRDWIIRSKFEWHTLSKEYETQKVPKENAEN'+
-              'YLIKISENKNDAKVSLLLNNCDAEYSKYCDCKHTTTLVKSVLNGNDNTIKEKREHIDLDDFSK'+
-              'FGCDKNSVDTNTKVWECKKPYKLSTKDVCVPPRRQELCLGNIDRIYDKNLLMIKEHILAIAIY'+
-              'ESRILKRKYKNKDDKEVCKIINKTFADIRDIIGGTDYWNDLSNRKLVGKINTNSNYVHRNKQN'+
-              'DKLFRDEWWKVIKKDVWNVISWVFKDKTVCKEDDIENIPQFFRWFSEWGDDYCQDKTKMIETL'+
-              'KVECKEKPCEDDNCKRKCNSYKEWISKKKEEYNKQAKQYQEYQKGNNYKMYSEFKSIKPEVYL'+
-              'KKYSEKCSNLNFEDEFKEELHSDYKNKCTMCPEVK'
+        to_match = {'A': (
+            'GRQTSSNNEVLSNCREKRKGMKWDCKKKNDRSNYVCIPDRRIQLCIVNLAII'
+            'KTYTKETMKDHFIEASKKESQLLLKKNDNKYNSKFCNDLKNSFLDYGHLAMGN'
+            'DMDFGGYSTKAENKIQEVFKGAHGEISEHKIKNFRKKWWNEFREKLWEAMLSE'
+            'HKNNINNCKNIPQEELQITQWIKEWHGEFLL'
+            'ERDNRAKLPKSKCKNNALYEACEKECIDPCMKYRDWIIRSKFEWHTLSKEYETQKVPKENAEN'
+            'YLIKISENKNDAKVSLLLNNCDAEYSKYCDCKHTTTLVKSVLNGNDNTIKEKREHIDLDDFSK'
+            'FGCDKNSVDTNTKVWECKKPYKLSTKDVCVPPRRQELCLGNIDRIYDKNLLMIKEHILAIAIY'
+            'ESRILKRKYKNKDDKEVCKIINKTFADIRDIIGGTDYWNDLSNRKLVGKINTNSNYVHRNKQN'
+            'DKLFRDEWWKVIKKDVWNVISWVFKDKTVCKEDDIENIPQFFRWFSEWGDDYCQDKTKMIETL'
+            'KVECKEKPCEDDNCKRKCNSYKEWISKKKEEYNKQAKQYQEYQKGNNYKMYSEFKSIKPEVYL'
+            'KKYSEKCSNLNFEDEFKEELHSDYKNKCTMCPEVK')
               }
         self.assertEqual(sequence, to_match)
         with self.assertRaises(IOError):
@@ -116,29 +118,33 @@ class TestPdbtools(TestCase):
                           'EKVQTAGIVTPYDILKQELDEFNEVAFENEINKRDGAYIELCVCSVEEAKK'
                           'NTQEVVTNVDN'),
                     'B':  ('ASNTVMKNCNYKRKRRERDWDCNTKKDVCIPDRRYQLCMKELTNLVNNTDT'
-                          'NFHRDITFRKLYLKRKLIYDAAVEGDLLLKLNNYRYNKDFCKDIRWSLGDF'
-                          'GDIIMGTDMEGIGYSKVVENNLRSIFGTDEKAQQRRKQWWNESKAQIWTAM'
-                          'MYSVKKRLKGNFIWICKLNVAVNIEPQIYRWIREWGRDYVSELPTEVQKLK'
-                          'EKCDGKINYTDKKVCKVPPCQNACKSYDQWITRKKNQWDVLSNKFISVKNA'
-                          'EKVQTAGIVTPYDILKQELDEFNEVAFENEINKRDGAYIELCVCSVEEAKK'
-                          'NTQEVVTNVDN')}
+                           'NFHRDITFRKLYLKRKLIYDAAVEGDLLLKLNNYRYNKDFCKDIRWSLGDF'
+                           'GDIIMGTDMEGIGYSKVVENNLRSIFGTDEKAQQRRKQWWNESKAQIWTAM'
+                           'MYSVKKRLKGNFIWICKLNVAVNIEPQIYRWIREWGRDYVSELPTEVQKLK'
+                           'EKCDGKINYTDKKVCKVPPCQNACKSYDQWITRKKNQWDVLSNKFISVKNA'
+                           'EKVQTAGIVTPYDILKQELDEFNEVAFENEINKRDGAYIELCVCSVEEAKK'
+                           'NTQEVVTNVDN')}
         self.assertDictEqual(sequence, to_match)
 
     def test_tajimas_d_on_structure(self):
         #test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
-        test_sequence_alignment = structmap.SequenceAlignment('./tests/msa/msa_test_86-104', 'fasta')
-        test_ref_dict = {x+86: (x*3+1, x*3 + 2, x*3 + 3) for x in range(0,18)}
-        test_surrounding_residues = range(86,104)
-        result = _tajimas_d(self.test_chain, test_sequence_alignment,
+        test_sequence_alignment = {('A',): structmap.SequenceAlignment(
+            './tests/msa/msa_test_86-104', 'fasta')}
+        test_ref_dict = {('A', (' ', x+86, ' ')): ('A', (x*3+1, x*3 + 2, x*3 + 3)) for
+                         x in range(0, 18)}
+        test_surrounding_residues = [('A', (' ', x, ' ')) for x in range(86, 104)]
+        result = _tajimas_d(self.test_structure, test_sequence_alignment,
                             test_surrounding_residues, test_ref_dict)
         self.assertEqual(result, -0.7801229937910628)
 
     def test_tajimas_d_on_structure_with_subset_of_reference_residues(self):
         #test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
-        test_sequence_alignment = structmap.SequenceAlignment('./tests/msa/msa_test_86-104', 'fasta')
-        test_ref_dict = {x+86: (x*3 + 1, x*3 + 2, x*3 + 3) for x in range(18)}
-        test_surrounding_residues = range(86,96)
-        result = _tajimas_d(self.test_chain, test_sequence_alignment,
+        test_sequence_alignment = {('A',): structmap.SequenceAlignment(
+            './tests/msa/msa_test_86-104', 'fasta')}
+        test_ref_dict = {('A', (' ', x+86, ' ')): ('A', (x*3 + 1, x*3 + 2, x*3 + 3)) for
+                         x in range(18)}
+        test_surrounding_residues = [('A', (' ', x, ' ')) for x in range(86, 96)]
+        result = _tajimas_d(self.test_structure, test_sequence_alignment,
                             test_surrounding_residues, test_ref_dict)
         self.assertEqual(result, -0.709896167879475)
 
@@ -154,17 +160,18 @@ class TestSeqtools(TestCase):
 
     def test_var_site(self):
         varsites_keys_to_match = [28, 46, 67, 93, 95, 98, 100]
-        self.assertEqual(sorted(self.varsites.keys()),varsites_keys_to_match)
+        self.assertEqual(sorted(self.varsites.keys()), varsites_keys_to_match)
 
     def test_join_alignments(self):
-        msa1 = self.alignment[:,1:2]
-        msa2 = self.alignment[:,2:3]
-        msa3 = self.alignment[:,3:6]
-        d = {}
-        for i, msa in enumerate([msa1,msa2,msa3]):
-            d[i] = msa
-        joined = seqtools._join_alignments(d)
-        self.assertEqual(joined.format('fasta'),self.alignment[:,1:6].format('fasta'))
+        msa1 = self.alignment[:, 1:2]
+        msa2 = self.alignment[:, 2:3]
+        msa3 = self.alignment[:, 3:6]
+        alignment_dict = {}
+        for i, msa in enumerate([msa1, msa2, msa3]):
+            alignment_dict[i] = msa
+        joined = seqtools._join_alignments(alignment_dict)
+        self.assertEqual(joined.format('fasta'),
+                         self.alignment[:, 1:6].format('fasta'))
 
     def test_sliding_window(self):
         step = 3
@@ -202,52 +209,56 @@ class TestSeqtools(TestCase):
         length = 10
         slider = _sliding_window_var_sites(self.alignment, length, step)
         varsites_keys_to_match = [28, 46, 67, 93, 95, 98, 100]
-        null_align = self.alignment[:,0:0]
+        null_align = self.alignment[:, 0:0]
         for i, window in enumerate(slider):
             #Check if key within range
             in_range = [x for x in varsites_keys_to_match if (step*i) <= x < (step*i + length)]
             print(in_range)
             if in_range:
-                window_i = self.alignment[:,in_range[0]:in_range[0]+1]
+                window_i = self.alignment[:, in_range[0]:in_range[0]+1]
                 if len(in_range) > 1:
                     for x in in_range[1:]:
-                        window_i = window_i + self.alignment[:,x:x+1]
-                self.assertEqual(window_i.format('fasta'), window.format('fasta'))
+                        window_i = window_i + self.alignment[:, x:x+1]
+                self.assertEqual(window_i.format('fasta'),
+                                 window.format('fasta'))
             else:
-                self.assertEqual(window.format('fasta'),null_align.format('fasta'))
+                self.assertEqual(window.format('fasta'),
+                                 null_align.format('fasta'))
 
     def test_sliding_window_var_sites_with_file(self):
         step = 3
         length = 10
         slider = _sliding_window_var_sites(self.test_file, length, step)
         varsites_keys_to_match = [28, 46, 67, 93, 95, 98, 100]
-        null_align = self.alignment[:,0:0]
+        null_align = self.alignment[:, 0:0]
         for i, window in enumerate(slider):
             #Check if key within range
             in_range = [x for x in varsites_keys_to_match if (step*i) <= x < (step*i + length)]
             print(in_range)
             if in_range:
-                window_i = self.alignment[:,in_range[0]:in_range[0]+1]
+                window_i = self.alignment[:, in_range[0]:in_range[0]+1]
                 if len(in_range) > 1:
                     for x in in_range[1:]:
-                        window_i = window_i + self.alignment[:,x:x+1]
-                self.assertEqual(window_i.format('fasta'), window.format('fasta'))
+                        window_i = window_i + self.alignment[:, x:x+1]
+                self.assertEqual(window_i.format('fasta'),
+                                 window.format('fasta'))
             else:
-                self.assertEqual(window.format('fasta'),null_align.format('fasta'))
+                self.assertEqual(window.format('fasta'),
+                                 null_align.format('fasta'))
 
     def test_blast_sequences(self):
         seq1 = "GSNAKFGLWVDGNCEDIPHVNEFPAID"
         seq1_bio = Seq(seq1)
         seq2 = "NAKFGLWV"
         seq2_bio = Seq(seq2)
-        test_map_forward, test_map_reverse = seqtools.blast_sequences(seq1,seq2)
+        test_map_forward, test_map_reverse = seqtools.blast_sequences(seq1, seq2)
         forward_match = {3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 8: 6, 9: 7, 10: 8}
         reverse_match = {1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10}
         #Check alignment for string input
         self.assertEqual(forward_match, test_map_forward)
         self.assertEqual(reverse_match, test_map_reverse)
         #Check alignment for Bio.Seq input
-        test_map_forward, test_map_reverse = seqtools.blast_sequences(seq1_bio,seq2_bio)
+        test_map_forward, test_map_reverse = seqtools.blast_sequences(seq1_bio, seq2_bio)
         self.assertEqual(forward_match, test_map_forward)
         self.assertEqual(reverse_match, test_map_reverse)
 
@@ -257,14 +268,14 @@ class TestSeqtools(TestCase):
         seq1_bio = Seq(seq1)
         seq2 = "NAKFLWVDG"
         seq2_bio = Seq(seq2)
-        test_map_reverse, test_map_forward = seqtools.blast_sequences(seq2,seq1)
+        test_map_reverse, test_map_forward = seqtools.blast_sequences(seq2, seq1)
         forward_match = {3: 1, 4: 2, 5: 3, 6: 4, 8: 5, 9: 6, 10: 7, 11: 8, 12: 9}
         reverse_match = {1: 3, 2: 4, 3: 5, 4: 6, 5: 8, 6: 9, 7: 10, 8: 11, 9: 12}
         #Check alignment for string input
         self.assertEqual(forward_match, test_map_forward)
         self.assertEqual(reverse_match, test_map_reverse)
         #Check alignment for Bio.Seq input
-        test_map_forward, test_map_reverse = seqtools.blast_sequences(seq1_bio,seq2_bio)
+        test_map_forward, test_map_reverse = seqtools.blast_sequences(seq1_bio, seq2_bio)
         self.assertEqual(forward_match, test_map_forward)
         self.assertEqual(reverse_match, test_map_reverse)
 
@@ -275,8 +286,8 @@ class TestSeqtools(TestCase):
         dna = 'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT'
         protein = 'MKCNISIYFFMKCNISIYFF'
         result = seqtools.align_protein_to_dna(protein, dna)
-        result_keys_to_match = [i for i in range(1,21)]
-        result_codons_to_match = [(i*3-2, i*3-1, i*3) for i in range(1,21)]
+        result_keys_to_match = [i for i in range(1, 21)]
+        result_codons_to_match = [(i*3-2, i*3-1, i*3) for i in range(1, 21)]
         self.assertEqual(result_keys_to_match, sorted(result))
         sorted_codons = [result[i] for i in sorted(result)]
         self.assertEqual(result_codons_to_match, sorted_codons)
@@ -285,19 +296,22 @@ class TestSeqtools(TestCase):
         """Need to account for an intron frameshift when converting from DNA to
         protein sequence.
         """
-        dna = 'ATGAAATGTAATATTAGTATATATTTTTTT' + 'GTTGTATAG' + 'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT'
+        dna = ('ATGAAATGTAATATTAGTATATATTTTTTT'
+               'GTTGTATAG'
+               'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT')
         protein = 'MKCNISIYFFMKCNISIYFFMKCNISIYFF'
         result = seqtools.align_protein_to_dna(protein, dna)
-        result_keys_to_match = [i for i in range(1,11)] + [i for i in range(11,31)]
-        result_codons_to_match = [(i*3-2, i*3-1, i*3) for i in range(1,11)] + [(i*3-2, i*3-1, i*3) for i in range(14,34)]
+        result_keys_to_match = [i for i in range(1,11)] + [i for i in range(11, 31)]
+        result_codons_to_match = [(i*3-2, i*3-1, i*3) for i in range(1, 11)] + \
+                [(i*3-2, i*3-1, i*3) for i in range(14, 34)]
         self.assertEqual(result_keys_to_match, sorted(result))
         sorted_codons = [result[i] for i in sorted(result)]
         self.assertEqual(result_codons_to_match, sorted_codons)
 
     def test_sub_align(self):
-        codons = [(1,2,3),(4,5,6),(10,11,12)]
+        codons = [(1, 2, 3), (4, 5, 6), (10, 11, 12)]
         result = _construct_sub_align(self.structmap_alignment, codons, 'fasta')
-        to_match = self.alignment[:,0:6] + self.alignment[:,9:12]
+        to_match = self.alignment[:, 0:6] + self.alignment[:, 9:12]
         self.assertEqual(to_match.format('fasta'), result)
 
 class TestGentests(TestCase):
@@ -322,7 +336,7 @@ class TestGentests(TestCase):
                     (121.5, -1.2371599802089934)]
         taj_d_window = gentests.tajimas_d(self.alignment, 50, 12)
         taj_d_window = [(x, taj_d_window[x]) for x in sorted(taj_d_window)]
-        self.assertEqual(taj_d_window,to_match)
+        self.assertEqual(taj_d_window, to_match)
         #Test that method returns 'None' when Tajimas D can't be calculated.
         taj_d_small_window = gentests.tajimas_d(self.alignment, 12, 3)
         self.assertEqual(taj_d_small_window[6.5], None)
@@ -384,9 +398,9 @@ class TestStructmap(TestCase):
             #test _getitem__ method work to return a model object
             self.assertTrue(isinstance(test_chain[residue.get_id()], Bio.PDB.Residue.Residue))
 
-    def test_nearby_function(self):
+    def test_structure_nearby_function(self):
         structure = structmap.Structure(self.test_file)
-        result = structure[0]['A'].nearby()
+        result = structure.nearby()
         self.assertTrue(isinstance(result, dict))
         for i in result.values():
             self.assertTrue(isinstance(i, set))
@@ -398,35 +412,48 @@ class TestStructmap(TestCase):
             self.assertTrue(isinstance(result[residue.get_id()], float))
 
     def test_default_mapping_procedure(self):
+        structure = structmap.Structure(self.test_file)
         chain = structmap.Structure(self.test_file)[0]['A']
-        mapping = chain.map([x for x in range(0,25)])
+        data = {'A': [x for x in range(0, 25)]}
+        mapping = structure.map(data)
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()]
+            result = mapping[residue.get_full_id()[2:4]]
             self.assertTrue(isinstance(result, float))
-        mapping = chain.map([x for x in range(0,25)], method='default', ref=None, radius=.1, selector='all')
-        for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()]
+        mapping = structure.map(data, method='default', ref=None, radius=0, selector='all')
+        nondetermined_residues = [1, 2, 3]
+        for residue in [residues for residues in chain if
+                        residues.get_id()[0] == ' ' and
+                        residues.get_id()[1] not in nondetermined_residues]:
+            result = mapping[residue.get_full_id()[2:4]]
             self.assertEqual(result, residue.get_id()[1])
         #Test if data is in a dictionary
-        mapping = chain.map({x:x for x in range(0,25)})
-        for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()]
+        mapping = structure.map({'A': {x:x for x in range(0, 25)}})
+        for residue in [residues for residues in chain if
+                        residues.get_id()[0] == ' ' and
+                        residues.get_id()[1] not in nondetermined_residues]:
+            result = mapping[residue.get_full_id()[2:4]]
             self.assertTrue(isinstance(result, float))
         #Test that an rsa_range of 0-1 doesn't change results
-        rsa_mapping = chain.map({x:x for x in range(0,25)}, rsa_range=[0,1])
+        rsa_mapping = structure.map(data, rsa_range=[0,1])
         self.assertDictEqual(rsa_mapping, mapping)
 
     def test_rsa_filtering_procedure(self):
-        chain = structmap.Structure(self.test_file)[0]['A']
-        mapping = chain.map([x for x in range(0, 25)])
-        filtered_mapping = chain.map([x for x in range(0,25)], rsa_range=[0.2, 1])
-        self.assertEqual(filtered_mapping[(' ', 13, ' ')], None)
-        self.assertEqual(set(mapping.keys()) - set([x for x in filtered_mapping.keys() if filtered_mapping[x] is not None]), set([(' ', 4, ' '), (' ',13, ' '), (' ', 16, ' ')]))
+        data = {'A': [x for x in range(0, 25)]}
+        structure = structmap.Structure(self.test_file)
+        mapping = structure.map(data)
+        filtered_mapping = structure.map(data, rsa_range=[0.2, 1])
+        self.assertEqual(filtered_mapping[('A', (' ', 13, ' '))], None)
+        self.assertEqual(set(mapping.keys()) - set([x for x in
+                                                    filtered_mapping.keys() if
+                                                    filtered_mapping[x] is not None]),
+                         set([('A', (' ', 4 , ' ')), ('A', (' ', 13, ' ')),
+                              ('A', (' ', 16, ' '))]))
 
 
     def test_sequence_alignment_instantiation(self):
         test_align = structmap.SequenceAlignment(self.test_align)
-        self.assertTrue(isinstance(test_align.alignment, Bio.Align.MultipleSeqAlignment))
+        self.assertTrue(isinstance(test_align.alignment,
+                                   Bio.Align.MultipleSeqAlignment))
         for i, seq in enumerate(test_align):
             #Test iteration
             self.assertTrue(isinstance(seq, Bio.SeqRecord.SeqRecord))
@@ -528,9 +555,9 @@ class TestStructmapMMCIF(TestCase):
             #test _getitem__ method work to return a model object
             self.assertTrue(isinstance(test_chain[residue.get_id()], Bio.PDB.Residue.Residue))
 
-    def test_nearby_function(self):
+    def test_structure_nearby_function(self):
         structure = self.structure
-        result = structure[0]['A'].nearby()
+        result = structure.nearby()
         self.assertTrue(isinstance(result, dict))
         for i in result.values():
             self.assertTrue(isinstance(i, set))
@@ -545,59 +572,42 @@ class TestStructmapMMCIF(TestCase):
                 self.assertTrue(isinstance(result[residue.get_id()], float))
 
     def test_default_mapping_procedure(self):
+        structure = self.structure
         chain = self.structure[0]['A']
-        mapping = chain.map([x for x in range(0,25)])
+        data = {'A': [x for x in range(0, 25)]}
+        mapping = structure.map(data)
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()]
+            result = mapping[residue.get_full_id()[2:4]]
             self.assertTrue(isinstance(result, float))
-        mapping = chain.map([x for x in range(0,25)], method='default', ref=None, radius=0, selector='all')
-        for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()]
-            if residue.get_id()[1] == 25:
-                self.assertEqual(result, None)
-            else:
-                self.assertEqual(result, residue.get_id()[1])
+        mapping = structure.map(data, method='default', ref=None, radius=0, selector='all')
+        nondetermined_residues = [25]
+        for residue in [residues for residues in chain if
+                        residues.get_id()[0] == ' ' and
+                        residues.get_id()[1] not in nondetermined_residues]:
+            result = mapping[residue.get_full_id()[2:4]]
+            self.assertEqual(result, residue.get_id()[1])
         #Test if data is in a dictionary
-        mapping = chain.map({x:x for x in range(0,25)})
-        for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
-            result = mapping[residue.get_id()]
+        mapping = structure.map({'A': {x:x for x in range(0, 25)}})
+        for residue in [residues for residues in chain if
+                        residues.get_id()[0] == ' ' and
+                        residues.get_id()[1] not in nondetermined_residues]:
+            result = mapping[residue.get_full_id()[2:4]]
             self.assertTrue(isinstance(result, float))
 
     def test_rsa_filtering_procedure(self):
-        chain = self.structure[0]['A']
-        mapping = chain.map([x for x in range(0, 25)])
-        filtered_mapping = chain.map([x for x in range(0,25)], rsa_range=[0.2, 1])
-        self.assertEqual(filtered_mapping[(' ', 13, ' ')], None)
-        self.assertEqual(set(mapping.keys()) - set([x for x in filtered_mapping.keys() if filtered_mapping[x] is not None]),
-                         set([(' ', 4, ' '), (' ',13, ' '), (' ', 16, ' '),
-                              (' ', 2, ' '), (' ', 3, ' '), (' ', 25, ' '),
-                              (' ', 14, ' ')]))
+        data = {'A': [x for x in range(0, 25)]}
+        structure = self.structure
+        mapping = structure.map(data)
+        filtered_mapping = structure.map(data, rsa_range=[0.2, 1])
+        self.assertEqual(filtered_mapping[('A', (' ', 13, ' '))], None)
+        self.assertEqual(set(mapping.keys()) - set([x for x in
+                                                    filtered_mapping.keys() if
+                                                    filtered_mapping[x] is not None]),
+                         set([('A', (' ', 4, ' ')), ('A', (' ', 13, ' ')),
+                              ('A', (' ', 25, ' ')), ('A', (' ', 14, ' ')),
+                              ('A', (' ', 3, ' ')), ('A', (' ', 2, ' ')),
+                              ('A', (' ', 16, ' '))]))
 
-
-    def test_sequence_alignment_instantiation(self):
-        test_align = structmap.SequenceAlignment(self.test_align)
-        self.assertTrue(isinstance(test_align.alignment, Bio.Align.MultipleSeqAlignment))
-        for i, seq in enumerate(test_align):
-            #Test iteration
-            self.assertTrue(isinstance(seq, Bio.SeqRecord.SeqRecord))
-            #test _getitem__ method work to return a model object
-            self.assertTrue(isinstance(test_align[i], Bio.SeqRecord.SeqRecord))
-
-    def test_tajimas_d_on_sequence_alignment(self):
-        test_align = structmap.SequenceAlignment('./tests/msa/MSA_test.fsa')
-        #Test basic calculation of Tajima's D
-        taj_d = test_align.tajimas_d()
-        self.assertEqual(taj_d, -1.553110875316991)
-        #Test for errors in input to the function
-        with self.assertRaises(TypeError):
-            test_align.tajimas_d(3.5,5)
-        with self.assertRaises(TypeError):
-            test_align.tajimas_d(3,5.5)
-
-    def test_tajimas_d_on_long_sequence(self):
-        test_align = structmap.SequenceAlignment('./tests/msa/MSA_test_long.fsa')
-        taj_d = test_align.tajimas_d()
-        self.assertEqual(taj_d, 0.33458440732186856)
 
     def test_residue_number_to_atom_number_function(self):
         '''
@@ -630,7 +640,7 @@ class TestStructureMapMethod(TestCase):
         self.test_file = './tests/pdb/4nuv.cif'
         self.structure = structmap.Structure(self.test_file, mmcif=True)
 
-    def test_default_mapping_on_structure(self):
+    def test_default_mapping_on_multchain_structure(self):
         ref_seq = (
               'ASNTVMKNCNYKRKRRERDWDCNTKKDVCIPDRRYQLCMKELTNLVNNTDT'
               'NFHRDITFRKLYLKRKLIYDAAVEGDLLLKLNNYRYNKDFCKDIRWSLGDF'
@@ -640,8 +650,19 @@ class TestStructureMapMethod(TestCase):
               'EKVQTAGIVTPYDILKQELDEFNEVAFENEINKRDGAYIELCVCSVEEAKK'
               'NTQEVVTNVDN')
         reference_seqs = {'A': ref_seq, 'B': ref_seq}
-        data = {'A': [1,2,3,4], 'B': [1,2,3,4]}
+        data = {('A', 'B'): range(500)}
 
-        data = self.structure.map(data=None, method='default',
-                                  ref=reference_seqs)
-        #TODO
+        mapped = self.structure.map(data=None, method='count_residues',
+                                    ref=reference_seqs, radius=3)
+        self.assertEqual(mapped[('A', (' ', 271, ' '))], 10)
+
+        mapped = self.structure.map(data=data, method='snps',
+                                    ref=reference_seqs, radius=3,
+                                    method_params={'ignore_duplicates':True,
+                                                   'output_count': True})
+        self.assertEqual(mapped[('A', (' ', 271, ' '))], 9)
+        mapped = self.structure.map(data=data, method='snps',
+                                    ref=reference_seqs, radius=3,
+                                    method_params={'ignore_duplicates':False,
+                                                   'output_count': True})
+        self.assertEqual(mapped[('A', (' ', 271, ' '))], 10)

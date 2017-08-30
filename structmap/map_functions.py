@@ -28,11 +28,14 @@ parameter convention.
 """
 from __future__ import absolute_import, division
 
-from Bio.SeqUtils import seq1, ProtParamData
-from Bio.Data.SCOPData import protein_letters_3to1
+from Bio.SeqUtils import ProtParamData
+from Bio.Data.IUPACData import protein_letters_3to1
 import numpy as np
 from .seqtools import _construct_sub_align_from_chains
 from . import gentests
+
+IUPAC_3TO1_UPPER = {key.upper(): value for key, value in
+                    protein_letters_3to1.items()}
 
 
 def _count_residues(_structure, _data, residues, _ref):
@@ -150,8 +153,8 @@ def _map_amino_acid_scale(structure, data, residues, _ref):
     """
     first_model = sorted(structure.models)[0]
     #Get a list of all amino acids within window, converted to one letter code
-    aminoacids = [seq1(structure[first_model][res[0]][res[1]].resname,
-                       custom_map=protein_letters_3to1)
+    aminoacids = [IUPAC_3TO1_UPPER.get(
+        structure[first_model][res[0]][res[1]].resname, 'X')
                   for res in residues]
     scales = {'kd': ProtParamData.kd, # Kyte & Doolittle index of hydrophobicity
               # Flexibility

@@ -641,19 +641,19 @@ class TestStructureMapMethod(TestCase):
         self.structure = structmap.Structure(self.test_file, mmcif=True)
 
     def test_default_mapping_on_multchain_structure(self):
-        ref_seq = (
-              'ASNTVMKNCNYKRKRRERDWDCNTKKDVCIPDRRYQLCMKELTNLVNNTDT'
-              'NFHRDITFRKLYLKRKLIYDAAVEGDLLLKLNNYRYNKDFCKDIRWSLGDF'
-              'GDIIMGTDMEGIGYSKVVENNLRSIFGTDEKAQQRRKQWWNESKAQIWTAM'
-              'MYSVKKRLKGNFIWICKLNVAVNIEPQIYRWIREWGRDYVSELPTEVQKLK'
-              'EKCDGKINYTDKKVCKVPPCQNACKSYDQWITRKKNQWDVLSNKFISVKNA'
-              'EKVQTAGIVTPYDILKQELDEFNEVAFENEINKRDGAYIELCVCSVEEAKK'
-              'NTQEVVTNVDN')
+        ref_seq = ('ASNTVMKNCNYKRKRRERDWDCNTKKDVCIPDRRYQLCMKELTNLVNNTDT'
+                   'NFHRDITFRKLYLKRKLIYDAAVEGDLLLKLNNYRYNKDFCKDIRWSLGDF'
+                   'GDIIMGTDMEGIGYSKVVENNLRSIFGTDEKAQQRRKQWWNESKAQIWTAM'
+                   'MYSVKKRLKGNFIWICKLNVAVNIEPQIYRWIREWGRDYVSELPTEVQKLK'
+                   'EKCDGKINYTDKKVCKVPPCQNACKSYDQWITRKKNQWDVLSNKFISVKNA'
+                   'EKVQTAGIVTPYDILKQELDEFNEVAFENEINKRDGAYIELCVCSVEEAKK'
+                   'NTQEVVTNVDN')
         reference_seqs = {'A': ref_seq, 'B': ref_seq}
         data = {('A', 'B'): range(500)}
 
         mapped = self.structure.map(data=None, method='count_residues',
                                     ref=reference_seqs, radius=3)
+        # Number of surrounding residues verified using selections in Pymol
         self.assertEqual(mapped[('A', (' ', 271, ' '))], 10)
 
         mapped = self.structure.map(data=data, method='snps',

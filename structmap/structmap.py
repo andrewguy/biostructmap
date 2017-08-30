@@ -81,8 +81,7 @@ class DataMap(dict):
         super(DataMap, self).__init__(*args, **kw)
 
 
-    def write_data_to_pdb_b_factor(self, default_no_value=0, outdir='',
-                                   filename=None):
+    def write_data_to_pdb_b_factor(self, default_no_value=0, file_object=None):
         """Write mapped data to PDB B-factor column, and save as a PDB file.
 
         This method allows for data visualisation over the PDB structure
@@ -107,10 +106,12 @@ class DataMap(dict):
         Returns:
             None
         """
-        # Make copy of structure object. This may fail in earlier versions of
-        # Biopython if the structure contains disordered residues.
-        # We do this so that we are not overwriting B-factor values in
-        # original PDB chain.
+        # Make copy of structure object.
+        # We do this so that we are not overwriting B-factor values in the
+        # original PDB structure.
+        # This may fail in earlier versions of Biopython if the structure
+        # contains disordered residues - An appropriate fix for deepcopying
+        # disordered residues has been added to Biopython (>v1.70?).
         _structure = deepcopy(self.structure)
         first_model = sorted(_structure.models)[0]
         #Set all B-factor fields to zeros/default value
@@ -129,9 +130,9 @@ class DataMap(dict):
         pdb_io = PDBIO()
         pdb_io.set_structure(_structure.structure)
         # Write structure to PDB file
-        if filename is None:
-            filename = _structure.pdbname + '_' + self._parameter_string() + '.pdb'
-        pdb_io.save(path.join(outdir, filename))
+        if file_object is None:
+            file_object = _structure.pdbname + '_' + self._parameter_string() + '.pdb'
+        pdb_io.save(file=file_object, preserve_atom_numbering=True)
         return None
 
     def write_to_atom(self, output, sep=','): #TODO write tests

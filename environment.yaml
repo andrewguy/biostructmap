@@ -1,4 +1,4 @@
-name: structmap
+name: biostructmap
 dependencies:
 - biopython=1.66=np110py35_0
 - libgfortran=1.0=0
@@ -19,4 +19,3 @@ dependencies:
 - zlib=1.2.8=0
 - pip:
   - dendropy==4.0.3
-

@@ -1,5 +1,5 @@
 '''A collection of tools to handle sequence manipulation.
-Part of the structmap package.
+Part of the biostructmap package.
 '''
 from __future__ import absolute_import, division, print_function
 
@@ -197,7 +197,7 @@ def blast_sequences(comp_seq, ref_seq):
 
 def _construct_sub_align_from_chains(alignments, codons, fasta=False):
     '''
-    Take a list of structmap multiple sequence alignment objects, and
+    Take a list of biostructmap multiple sequence alignment objects, and
     return a subset of codons based on an input list in the form
     [('A',(1,2,3)),('B',(4,5,6)),...].
 
@@ -237,7 +237,7 @@ def _construct_sub_align_from_chains(alignments, codons, fasta=False):
 
 def _construct_sub_align(alignment, codons, fasta=False):
     '''
-    Take a structmap multiple sequence alignment object, and return a
+    Take a biostructmap multiple sequence alignment object, and return a
     subset of codons based on an input list in the form [(1,2,3),(4,5,6),...].
 
     Notes:

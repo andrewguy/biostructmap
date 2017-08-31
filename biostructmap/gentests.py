@@ -1,6 +1,6 @@
 """A collection of tools to handle genomic tests, in particular Tajima's D.
 
-Part of the StructMap package.
+Part of the biostructmap package.
 """
 from __future__ import absolute_import, division, print_function
 
@@ -23,7 +23,7 @@ def tajimas_d(alignment, window=None, step=3):
         alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
             alignment string in FASTA format or a multiple sequence alignment
             object, either as a Bio.Align.MultipleSequenceAlignment or a
-            Structmap.SequenceAlignment object.
+            biostructmap.SequenceAlignment object.
         window (int, optional): The size of the sliding window over which
             Tajima's D is calculated. Default is None, in which case a
             single Tajima's D value is calculated for the multiple sequence
@@ -66,7 +66,7 @@ def _tajimas_d(alignment):
         alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
             alignment string in FASTA format or a multiple sequence alignment
             object, either as a Bio.Align.MultipleSequenceAlignment or a
-            Structmap.SequenceAlignment object.
+            biostructmap.SequenceAlignment object.
 
     Returns:
         float: Tajima's D value. Returns None if Tajima's D is undefined.

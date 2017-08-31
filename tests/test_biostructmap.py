@@ -8,12 +8,12 @@ import Bio.PDB
 from Bio import AlignIO
 from Bio.Seq import Seq
 from Bio.PDB.MMCIF2Dict import MMCIF2Dict
-from structmap import structmap, seqtools, gentests, pdbtools
-from structmap.seqtools import (_sliding_window, _sliding_window_var_sites,
+from biostructmap import biostructmap, seqtools, gentests, pdbtools
+from biostructmap.seqtools import (_sliding_window, _sliding_window_var_sites,
                                _construct_sub_align)
-from structmap.gentests import _tajimas_d
-from structmap.pdbtools import _euclidean_distance_matrix
-from structmap.map_functions import _tajimas_d
+from biostructmap.gentests import _tajimas_d
+from biostructmap.pdbtools import _euclidean_distance_matrix
+from biostructmap.map_functions import _tajimas_d
 
 STANDARD_AA_3_LETTERS = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
                          'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER',
@@ -128,7 +128,7 @@ class TestPdbtools(TestCase):
 
     def test_tajimas_d_on_structure(self):
         #test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
-        test_sequence_alignment = {('A',): structmap.SequenceAlignment(
+        test_sequence_alignment = {('A',): biostructmap.SequenceAlignment(
             './tests/msa/msa_test_86-104', 'fasta')}
         test_ref_dict = {('A', (' ', x+86, ' ')): ('A', (x*3+1, x*3 + 2, x*3 + 3)) for
                          x in range(0, 18)}
@@ -139,7 +139,7 @@ class TestPdbtools(TestCase):
 
     def test_tajimas_d_on_structure_with_subset_of_reference_residues(self):
         #test_sequence_alignment = AlignIO.read('./tests/msa/msa_test_86-104', 'fasta')
-        test_sequence_alignment = {('A',): structmap.SequenceAlignment(
+        test_sequence_alignment = {('A',): biostructmap.SequenceAlignment(
             './tests/msa/msa_test_86-104', 'fasta')}
         test_ref_dict = {('A', (' ', x+86, ' ')): ('A', (x*3 + 1, x*3 + 2, x*3 + 3)) for
                          x in range(18)}
@@ -152,7 +152,7 @@ class TestSeqtools(TestCase):
     def setUp(self):
         self.test_file = './tests/msa/MSA_test.fsa'
         self.alignment = AlignIO.read(self.test_file, 'fasta')
-        self.structmap_alignment = structmap.SequenceAlignment('./tests/msa/MSA_test.fsa')
+        self.biostructmap_alignment = biostructmap.SequenceAlignment('./tests/msa/MSA_test.fsa')
         self.varsites = seqtools._var_site(self.alignment)
 
     def tearDown(self):
@@ -310,7 +310,7 @@ class TestSeqtools(TestCase):
 
     def test_sub_align(self):
         codons = [(1, 2, 3), (4, 5, 6), (10, 11, 12)]
-        result = _construct_sub_align(self.structmap_alignment, codons, 'fasta')
+        result = _construct_sub_align(self.biostructmap_alignment, codons, 'fasta')
         to_match = self.alignment[:, 0:6] + self.alignment[:, 9:12]
         self.assertEqual(to_match.format('fasta'), result)
 
@@ -345,18 +345,18 @@ class TestGentests(TestCase):
         taj_d = gentests._tajimas_d(self.small_alignment)
         self.assertEqual(taj_d, None)
 
-class TestStructmap(TestCase):
+class Testbiostructmap(TestCase):
     def setUp(self):
         self.test_file = './tests/pdb/1as5.pdb'
         self.test_align = './tests/msa/MSA_small.fsa'
 
     def test_structure_object_instantiation(self):
-        structure = structmap.Structure(self.test_file)
+        structure = biostructmap.Structure(self.test_file)
         for model in structure:
             #Test iteration
-            self.assertTrue(isinstance(model, structmap.Model))
+            self.assertTrue(isinstance(model, biostructmap.Model))
             #test _getitem__ method work to return a model object
-            self.assertTrue(isinstance(structure[model.get_id()], structmap.Model))
+            self.assertTrue(isinstance(structure[model.get_id()], biostructmap.Model))
         self.assertTrue(isinstance(structure.structure, Bio.PDB.Structure.Structure))
         self.assertTrue(isinstance(structure.structure[0]['A'], Bio.PDB.Chain.Chain))
         self.assertTrue(isinstance(structure.sequences, dict))
@@ -364,30 +364,30 @@ class TestStructmap(TestCase):
     def test_structure_object_instantiation_with_file_like_object(self):
         with open(self.test_file, 'r') as f:
             test_filelike = io.StringIO(f.read())
-        structure = structmap.Structure(test_filelike)
+        structure = biostructmap.Structure(test_filelike)
         for model in structure:
             #Test iteration
-            self.assertTrue(isinstance(model, structmap.Model))
+            self.assertTrue(isinstance(model, biostructmap.Model))
             #test _getitem__ method work to return a model object
-            self.assertTrue(isinstance(structure[model.get_id()], structmap.Model))
+            self.assertTrue(isinstance(structure[model.get_id()], biostructmap.Model))
         self.assertTrue(isinstance(structure.structure, Bio.PDB.Structure.Structure))
         self.assertTrue(isinstance(structure.sequences, dict))
 
 
     def test_model_instantiation(self):
-        structure = structmap.Structure(self.test_file)
+        structure = biostructmap.Structure(self.test_file)
         test_model = structure[0]
         self.assertEqual(test_model.get_id(),0)
         self.assertTrue(isinstance(test_model.model, Bio.PDB.Model.Model))
         self.assertEqual(test_model.parent(), structure)
         for chain in test_model:
             #Test iteration
-            self.assertTrue(isinstance(chain, structmap.Chain))
+            self.assertTrue(isinstance(chain, biostructmap.Chain))
             #test _getitem__ method work to return a model object
-            self.assertTrue(isinstance(test_model[chain.get_id()], structmap.Chain))
+            self.assertTrue(isinstance(test_model[chain.get_id()], biostructmap.Chain))
 
     def test_chain_instantiation(self):
-        structure = structmap.Structure(self.test_file)
+        structure = biostructmap.Structure(self.test_file)
         test_chain = structure[0]['A']
         self.assertEqual(test_chain.get_id(),'A')
         self.assertTrue(isinstance(test_chain.chain, Bio.PDB.Chain.Chain))
@@ -399,21 +399,21 @@ class TestStructmap(TestCase):
             self.assertTrue(isinstance(test_chain[residue.get_id()], Bio.PDB.Residue.Residue))
 
     def test_structure_nearby_function(self):
-        structure = structmap.Structure(self.test_file)
+        structure = biostructmap.Structure(self.test_file)
         result = structure.nearby()
         self.assertTrue(isinstance(result, dict))
         for i in result.values():
             self.assertTrue(isinstance(i, set))
 
     def test_rsa_determination(self):
-        chain = structmap.Structure(self.test_file)[0]['A']
+        chain = biostructmap.Structure(self.test_file)[0]['A']
         result = chain.rel_solvent_access()
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
             self.assertTrue(isinstance(result[residue.get_id()], float))
 
     def test_default_mapping_procedure(self):
-        structure = structmap.Structure(self.test_file)
-        chain = structmap.Structure(self.test_file)[0]['A']
+        structure = biostructmap.Structure(self.test_file)
+        chain = biostructmap.Structure(self.test_file)[0]['A']
         data = {'A': [x for x in range(0, 25)]}
         mapping = structure.map(data)
         for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
@@ -439,7 +439,7 @@ class TestStructmap(TestCase):
 
     def test_rsa_filtering_procedure(self):
         data = {'A': [x for x in range(0, 25)]}
-        structure = structmap.Structure(self.test_file)
+        structure = biostructmap.Structure(self.test_file)
         mapping = structure.map(data)
         filtered_mapping = structure.map(data, rsa_range=[0.2, 1])
         self.assertEqual(filtered_mapping[('A', (' ', 13, ' '))], None)
@@ -451,7 +451,7 @@ class TestStructmap(TestCase):
 
 
     def test_sequence_alignment_instantiation(self):
-        test_align = structmap.SequenceAlignment(self.test_align)
+        test_align = biostructmap.SequenceAlignment(self.test_align)
         self.assertTrue(isinstance(test_align.alignment,
                                    Bio.Align.MultipleSeqAlignment))
         for i, seq in enumerate(test_align):
@@ -461,7 +461,7 @@ class TestStructmap(TestCase):
             self.assertTrue(isinstance(test_align[i], Bio.SeqRecord.SeqRecord))
 
     def test_tajimas_d_on_sequence_alignment(self):
-        test_align = structmap.SequenceAlignment('./tests/msa/MSA_test.fsa')
+        test_align = biostructmap.SequenceAlignment('./tests/msa/MSA_test.fsa')
         #Test basic calculation of Tajima's D
         taj_d = test_align.tajimas_d()
         self.assertEqual(taj_d, -1.553110875316991)
@@ -472,19 +472,19 @@ class TestStructmap(TestCase):
             test_align.tajimas_d(3,5.5)
 
     def test_tajimas_d_on_long_sequence(self):
-        test_align = structmap.SequenceAlignment('./tests/msa/MSA_test_long.fsa')
+        test_align = biostructmap.SequenceAlignment('./tests/msa/MSA_test_long.fsa')
         taj_d = test_align.tajimas_d()
         self.assertEqual(taj_d, 0.33458440732186856)
 
     def test_residue_number_to_atom_number_function(self):
-        structure = structmap.Structure(self.test_file)
+        structure = biostructmap.Structure(self.test_file)
         mapping = structure[0]['A'].residue_to_atom_map()
         self.assertEqual(len(mapping), 25)
         first_residue_atoms = list(range(1,21))
         self.assertEqual(sorted(mapping[1]), first_residue_atoms)
 
     def test_secondary_structure_dictionary_creation(self):
-        chain = structmap.Structure(self.test_file)[0]['A']
+        chain = biostructmap.Structure(self.test_file)[0]['A']
         ss_dict_numeric = {1: 7, 2: 7, 3: 7, 4: 6, 5: 6, 6: 6,
                            7: 5, 8: 5, 9: 7, 10: 7, 11: 7, 12: 7,
                            13: 7, 14: 5, 15: 5, 16: 7, 17: 5, 18: 5,
@@ -501,19 +501,19 @@ class TestStructmap(TestCase):
                              chain.secondary_structure(numeric_ss_code=True))
 
 
-class TestStructmapMMCIF(TestCase):
+class TestbiostructmapMMCIF(TestCase):
     def setUp(self):
         self.test_file = './tests/pdb/1as5.cif'
         self.test_align = './tests/msa/MSA_small.fsa'
-        self.structure = structmap.Structure(self.test_file, mmcif=True)
+        self.structure = biostructmap.Structure(self.test_file, mmcif=True)
 
     def test_structure_object_instantiation(self):
         structure = self.structure
         for model in structure:
             #Test iteration
-            self.assertTrue(isinstance(model, structmap.Model))
+            self.assertTrue(isinstance(model, biostructmap.Model))
             #test _getitem__ method work to return a model object
-            self.assertTrue(isinstance(structure[model.get_id()], structmap.Model))
+            self.assertTrue(isinstance(structure[model.get_id()], biostructmap.Model))
         self.assertTrue(isinstance(structure.structure, Bio.PDB.Structure.Structure))
         self.assertTrue(isinstance(structure.structure[0]['A'], Bio.PDB.Chain.Chain))
         self.assertTrue(isinstance(structure.sequences, dict))
@@ -521,12 +521,12 @@ class TestStructmapMMCIF(TestCase):
     def test_structure_object_instantiation_with_file_like_object(self):
         with open(self.test_file, 'r') as f:
             test_filelike = io.StringIO(f.read())
-        structure = structmap.Structure(test_filelike, mmcif=True)
+        structure = biostructmap.Structure(test_filelike, mmcif=True)
         for model in structure:
             #Test iteration
-            self.assertTrue(isinstance(model, structmap.Model))
+            self.assertTrue(isinstance(model, biostructmap.Model))
             #test _getitem__ method work to return a model object
-            self.assertTrue(isinstance(structure[model.get_id()], structmap.Model))
+            self.assertTrue(isinstance(structure[model.get_id()], biostructmap.Model))
         self.assertTrue(isinstance(structure.structure, Bio.PDB.Structure.Structure))
         self.assertTrue(isinstance(structure.sequences, dict))
 
@@ -539,9 +539,9 @@ class TestStructmapMMCIF(TestCase):
         self.assertEqual(test_model.parent(), structure)
         for chain in test_model:
             #Test iteration
-            self.assertTrue(isinstance(chain, structmap.Chain))
+            self.assertTrue(isinstance(chain, biostructmap.Chain))
             #test _getitem__ method work to return a model object
-            self.assertTrue(isinstance(test_model[chain.get_id()], structmap.Chain))
+            self.assertTrue(isinstance(test_model[chain.get_id()], biostructmap.Chain))
 
     def test_chain_instantiation(self):
         structure = self.structure
@@ -638,7 +638,7 @@ class TestStructmapMMCIF(TestCase):
 class TestStructureMapMethod(TestCase):
     def setUp(self):
         self.test_file = './tests/pdb/4nuv.cif'
-        self.structure = structmap.Structure(self.test_file, mmcif=True)
+        self.structure = biostructmap.Structure(self.test_file, mmcif=True)
 
     def test_default_mapping_on_multchain_structure(self):
         ref_seq = ('ASNTVMKNCNYKRKRRERDWDCNTKKDVCIPDRRYQLCMKELTNLVNNTDT'

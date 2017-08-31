@@ -1,6 +1,6 @@
 """A collection of tools for analysing a pdb file.
 
-Helper module for the structmap package.
+Helper module for the biostructmap package.
 """
 from __future__ import absolute_import, division, print_function
 
@@ -273,7 +273,7 @@ def match_pdb_residue_num_to_seq(model, ref=None):
     Reference sequence is 1-indexed (and is indexed as such in output).
 
     Args:
-        model: A Structmap Model object.
+        model: A biostructmap Model object.
         ref (dict): A dictionary containing reference protein sequences for each
             chain in the protein structure. Defaults to the protein sequences
             given in PDB file.

@@ -1,8 +1,8 @@
-# StructMap
+# Biostructmap
 
-Structmap is a Python tool for mapping sequence-aligned data (such as location of polymorphisms) onto a protein structure.
+Biostructmap is a Python tool for mapping sequence-aligned data (such as location of polymorphisms) onto a protein structure.
 
-Additionally, Structmap allows for the incorporation of residue spatial-proximity into sliding-window calculations, and can be used to incorporate protein structure information into genetic tests of selection pressure.
+Additionally, biostructmap allows for the incorporation of residue spatial-proximity into sliding-window calculations, and can be used to incorporate protein structure information into genetic tests of selection pressure.
 
 # Table of Contents
 - [Usage Examples](#usage-examples)
@@ -25,10 +25,10 @@ Additionally, Structmap allows for the incorporation of residue spatial-proximit
 A simple usage case may be identification of regions of the protein with a high percentage of polymorphic residues. If we are perhaps interested in antibody-antigen interaction, 15 Angstrom is a reasonable radius over which to average over.
 
 ```
-import structmap
+import biostructmap
 
 # Initialise structure object
-structure = structmap.Structure('1zrl.pdb', 'test_pdb_name')
+structure = biostructmap.Structure('1zrl.pdb', 'test_pdb_name')
 
 # The location of known polymorphisms relative to the PDB sequence (we are not
 # providing a reference sequence for this example), for each chain.
@@ -48,10 +48,10 @@ results.write_data_to_pdb_b_factor(fileobj='test_pdb_data_write.pdb')
 A slighly more complicated usage case may be the calculation of an average amino acid propensity scale, such as the Kyte & Doolittle index of hydrophobicity. Additionally, if we are solely interested in surface exposed residues, we may wish to restrict analysis to only residues with a relative solvent accessibility greater than 0.2.
 
 ```
-import structmap
+import biostructmap
 
 # Initialise structure object
-structure = structmap.Structure('1zrl.pdb', 'test_pdb_name')
+structure = biostructmap.Structure('1zrl.pdb', 'test_pdb_name')
 
 # For this method, the data parameter is a string which represents the amino
 # acid propensity scale we wish to use. Note the use of the optional rsa_range
@@ -66,16 +66,16 @@ results.write_data_to_pdb_b_factor(fileobj='test_pdb_data_write.pdb')
 
 ### Calculation of Tajima's D using protein structural information
 
-We can also use the structmap package to calculate a modified Tajima's D value which incorporates protein structural information --- essentially using a 3D sliding window instead of the standard 2D sliding window often applied over a protein sequence.
+We can also use the biostructmap package to calculate a modified Tajima's D value which incorporates protein structural information --- essentially using a 3D sliding window instead of the standard 2D sliding window often applied over a protein sequence.
 
 ```
-import structmap
+import biostructmap
 
 # Initialise structure object
-structure = structmap.Structure('1zrl.pdb', 'test_pdb_name')
+structure = biostructmap.Structure('1zrl.pdb', 'test_pdb_name')
 
 # Read in multiple sequence alignment data
-msa_data = {('A',): structmap.SequenceAlignment('seq_align.fsa')}
+msa_data = {('A',): biostructmap.SequenceAlignment('seq_align.fsa')}
 
 # Reference seq might be the first sequence in the multiple sequence alignment
 reference_seq = {'A': msa_data[0]}
@@ -96,7 +96,7 @@ load my_pdb_file_name_here
 as surface
 
 #Select all residues with a mapped data value. Can change the default 'no-value'
-#option when writing to pdb b factor using structmap if needed.
+#option when writing to pdb b factor using biostructmap if needed.
 select nonzeros, b < 0 | b > 0
 
 spectrum b, selection=nonzeros
@@ -110,7 +110,7 @@ cmd.png('output_file_name.png', dpi=300)
 
 ## Prerequisites
 
-Installing the Structmap package requires both an install of the main package, as well as install of a few external binaries (NCBI BLAST+, Exonerate and DSSP).
+Installing the biostructmap package requires both an install of the main package, as well as install of a few external binaries (NCBI BLAST+, Exonerate and DSSP).
 
 #### BLAST+:
 
@@ -142,11 +142,11 @@ To install Exonerate, visit the [Exonerate website](http://www.ebi.ac.uk/about/v
 sudo apt-get install exonerate
 ```
 
-Note that Exonerate is only required if performing calculation of Tajima's D over a protein structure using a multiple sequence alignment - it is used to align a genomic sequence to a protein coding region. If this functionality is not required, then Structmap can be installed and run without Exonerate, although some of the tests will fail.
+Note that Exonerate is only required if performing calculation of Tajima's D over a protein structure using a multiple sequence alignment - it is used to align a genomic sequence to a protein coding region. If this functionality is not required, then biostructmap can be installed and run without Exonerate, although some of the tests will fail.
 
 #### Numpy, Scipy:
 
-Before install Structmap it is recommended to install Numpy and Scipy using your Python package manager of choice (eg pip or conda). If you are using the Anaconda distribution of Python, then both NumPy and SciPy should be installed already. If not, or if you are using a virtual environment:
+Before install biostructmap it is recommended to install Numpy and Scipy using your Python package manager of choice (eg pip or conda). If you are using the Anaconda distribution of Python, then both NumPy and SciPy should be installed already. If not, or if you are using a virtual environment:
 
 ```
 conda install numpy scipy
@@ -160,7 +160,7 @@ pip install numpy scipy
 
 ## Installing
 
-To install the Structmap package, it is first recommended that you make sure all tests pass in your environment.
+To install the biostructmap package, it is first recommended that you make sure all tests pass in your environment.
 
 From the root package directory, run:
 
@@ -188,9 +188,9 @@ or alternatively
 pytest
 ```
 
-These tests should cover most of the structmap functionality, with several tests reliant on additional packages such as NCBI BLAST+ or DSSP, which should be installed alongside structmap.
+These tests should cover most of the biostructmap functionality, with several tests reliant on additional packages such as NCBI BLAST+ or DSSP, which should be installed alongside biostructmap.
 
-Structmap was developed for Python 3+, but also supports Python 2.7. Please contact us if any compatibility issues are observed with older versions of Python.
+biostructmap was developed for Python 3+, but also supports Python 2.7. Please contact us if any compatibility issues are observed with older versions of Python.
 
 ## Contributing
 
@@ -198,13 +198,13 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 
 ## Versioning
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/andrewguy/structmap/tags).
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/andrewguy/biostructmap/tags).
 
 ## Authors
 
 * **Andrew Guy** - *Main Author* - [Github Page](https://github.com/andrewguy)
 
-See also the list of [contributors](https://github.com/andrewguy/structmap/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/andrewguy/biostructmap/contributors) who participated in this project.
 
 ## License
 

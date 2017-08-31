@@ -2,7 +2,7 @@
 
 We welcome contributions of any sort - bug reports, enhancements, pull requests etc.
 
-Please use the GitHub [issues tracker](https://github.com/andrewguy/structmap/issues) to flag potential bugs or improvements.
+Please use the GitHub [issues tracker](https://github.com/andrewguy/biostructmap/issues) to flag potential bugs or improvements.
 
 ## Pull requests
 

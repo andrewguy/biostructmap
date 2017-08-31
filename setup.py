@@ -6,9 +6,9 @@ import sys
 from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
 
-# Version is defined in structmap/__init__.py
+# Version is defined in biostructmap/__init__.py
 __version__ = "Undefined"
-for line in open('structmap/__init__.py'):
+for line in open('biostructmap/__init__.py'):
     if (line.startswith('__version__')):
         exec(line.strip())
 
@@ -37,7 +37,7 @@ class PyTest(TestCommand):
         sys.exit(errcode)
 
 setup(
-    name='structmap',
+    name='biostructmap',
     version=__version__,
     url='',
     author='Andrew Guy',
@@ -52,10 +52,10 @@ setup(
     author_email='andrewguy@burnet.edu.au',
     description='A simple package for mapping data onto protein PDB structures',
     long_description=LONG_DESCRIPTION,
-    packages=['structmap'],
+    packages=['biostructmap'],
     include_package_data=True,
     platforms='any',
-    test_suite='tests.test_structmap',
+    test_suite='tests.test_biostructmap',
     classifiers=[
         'Programming Language :: Python',
         'Development Status :: 2 - Pre-Alpha',

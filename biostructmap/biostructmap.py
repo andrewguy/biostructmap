@@ -1,5 +1,5 @@
 '''
-Main PDB Structure Mapping (StructMap) module. This package implements
+Main PDB Structure Mapping (biostructmap) module. This package implements
 techniques to map data onto a protein PDB structure.
 
 Rationale:
@@ -23,12 +23,12 @@ Tajima's D is often calculated as a sliding window over a genome. However, when
 the origins of balancing selection occur at the level of protein structure,
 it can be useful to also consider protein spatial information when computing
 Tajima's D using a sliding window. In essence, we could calculate Tajima's D
-using a 3D sliding window over a protein structure. The StructMap package
+using a 3D sliding window over a protein structure. The biostructmap package
 automates this process.
 
 Details:
 
-The StructMap package makes extensive use of the Biopython Bio.PDB module for
+The biostructmap package makes extensive use of the Biopython Bio.PDB module for
 PDB file parsing and integration with calculation of secondary structure
 and relative solvent accessibility via the DSSP program. Calculation of Tajima's
 D is performed using DendroPy, although several optimisations are performed
@@ -395,7 +395,7 @@ class Structure(object):
                 aligning to a DNA sequence. Defaults to False.
 
         Returns:
-            structmap.DataMap: A dictionary-like object which contains mapped
+            biostructmap.DataMap: A dictionary-like object which contains mapped
                 values for each residue (key). This object extends the standard
                 dict type, adding methods to allow writing of data to PDB
                 B-factor columns for easy viewing using Pymol or other similar
@@ -521,7 +521,7 @@ class Model(object):
         '''Initialise A PDB Model object.
 
         Args:
-            structure (structmap.Structure): Parent structure object.
+            structure (biostructmap.Structure): Parent structure object.
             model (Bio.PDB.Model.Model): Bio.PDB Model object.
         '''
         self._id = model.get_id()
@@ -586,7 +586,7 @@ class Chain(object):
         '''Initialise A PDB Chain object.
 
         Args:
-            model (structmap.Model): Parent Model object.
+            model (biostructmap.Model): Parent Model object.
             chain (Bio.PDB.Chain.Chain): Bio.PDB Chain object.
         '''
         self._id = chain.get_id()
@@ -700,7 +700,7 @@ class Chain(object):
 
         Args:
             data (dict): A dictionary of output score for each residue. Can also
-                be structmap.DataMap object, which extends the dict class.
+                be biostructmap.DataMap object, which extends the dict class.
             output (str): Output file name/path.
             sep (str, optional): Seperator between residue and data.
                 Defaults to `,`.
@@ -746,7 +746,7 @@ class Chain(object):
 
         Args:
             data (dict): A dictionary of output score for each residue. Can also
-                be structmap.DataMap object, which extends the dict class.
+                be biostructmap.DataMap object, which extends the dict class.
             output (str): Output file name/path.
             sep (str, optional): Seperator between residue and data.
                 Defaults to `,`.

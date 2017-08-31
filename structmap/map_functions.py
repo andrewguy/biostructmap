@@ -1,4 +1,4 @@
-"""A collection of methods that can be used to map data to a set of residues
+'''A collection of methods that can be used to map data to a set of residues
 within a PDB structure.
 
 These methods all take the form:
@@ -25,7 +25,7 @@ acid scales.
 Note that departures from these input parameter conventions will be noted
 in function docstrings, but otherwise can be assumed to follow the above
 parameter convention.
-"""
+'''
 from __future__ import absolute_import, division
 
 from Bio.SeqUtils import ProtParamData
@@ -39,14 +39,14 @@ IUPAC_3TO1_UPPER = {key.upper(): value for key, value in
 
 
 def _count_residues(_structure, _data, residues, _ref):
-    """Simple function to count the number of residues within a radius.
+    '''Simple function to count the number of residues within a radius.
 
     Returns:
-        int: Number of residues within a radius"""
+        int: Number of residues within a radius'''
     return len(residues)
 
 def _tajimas_d(_structure, alignments, residues, ref):
-    """"Calculate Tajimas D for selected residues within a PDB chain.
+    '''Calculate Tajimas D for selected residues within a PDB chain.
     input is Chain object, multiple sequence alignment object,
     list of surrounding residues, and a dictionary giving mapping
     of PDB residue number to codon positions.
@@ -59,7 +59,7 @@ def _tajimas_d(_structure, alignments, residues, ref):
             relative to the supplied multiple sequence alignment.
     Returns:
         float: Tajima's D value. Returns None if Tajima's D is undefined.
-    """
+    '''
     chains = alignments.keys()
     #filter list of residues based on those that have mapped codons:
     ref_residues = [ref[x] for x in residues if x in ref]  # Returns [('A', (15,16,17)), ...]
@@ -75,11 +75,11 @@ def _tajimas_d(_structure, alignments, residues, ref):
 
 
 def _default_mapping(_structure, data, residues, ref, ignore_duplicates=True):
-    """"Calculate an average of all data points over selected residues.
+    '''Calculate an average of all data points over selected residues.
 
     Returns:
         float: Average of all data points within a radius.
-    """
+    '''
     chains = data.keys()
     #filter list of residues based on those that have mapped reference
     ref_residues = [ref[x] for x in residues if x in ref]
@@ -97,7 +97,7 @@ def _default_mapping(_structure, data, residues, ref, ignore_duplicates=True):
 
 def _snp_mapping(_structure, data, residues, ref, ignore_duplicates=True,
                  output_count=False):
-    """"Calculate the percentage of SNPs over selected residues.
+    '''Calculate the percentage of SNPs over selected residues.
     Data is a list of residues that contain SNPs.
 
     Args:
@@ -109,7 +109,7 @@ def _snp_mapping(_structure, data, residues, ref, ignore_duplicates=True,
 
     Returns:
         float: Proportion of residues within a radius that are polymorphic.
-    """
+    '''
     chains = data.keys()
     #filter list of residues based on those that have mapped reference
     ref_residues = [ref[x] for x in residues if x in ref]
@@ -135,7 +135,7 @@ def _snp_mapping(_structure, data, residues, ref, ignore_duplicates=True,
 
 
 def _map_amino_acid_scale(structure, data, residues, _ref):
-    """
+    '''
     Compute average value for amino acid propensity scale.
 
     Args:
@@ -150,7 +150,7 @@ def _map_amino_acid_scale(structure, data, residues, _ref):
 
     Returns:
         float: Average propensity scale score over residues within a radius.
-    """
+    '''
     first_model = sorted(structure.models)[0]
     #Get a list of all amino acids within window, converted to one letter code
     aminoacids = [IUPAC_3TO1_UPPER.get(

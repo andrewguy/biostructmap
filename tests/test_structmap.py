@@ -280,9 +280,9 @@ class TestSeqtools(TestCase):
         self.assertEqual(reverse_match, test_map_reverse)
 
     def test_protein_dna_alignment(self):
-        """Need to account for an intron frameshift when converting from DNA to
+        '''Need to account for an intron frameshift when converting from DNA to
         protein sequence.
-        """
+        '''
         dna = 'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT'
         protein = 'MKCNISIYFFMKCNISIYFF'
         result = seqtools.align_protein_to_dna(protein, dna)
@@ -293,9 +293,9 @@ class TestSeqtools(TestCase):
         self.assertEqual(result_codons_to_match, sorted_codons)
 
     def test_protein_dna_alignment_with_intron(self):
-        """Need to account for an intron frameshift when converting from DNA to
+        '''Need to account for an intron frameshift when converting from DNA to
         protein sequence.
-        """
+        '''
         dna = ('ATGAAATGTAATATTAGTATATATTTTTTT'
                'GTTGTATAG'
                'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT')

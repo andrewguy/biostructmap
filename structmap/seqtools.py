@@ -1,6 +1,6 @@
-"""A collection of tools to handle sequence manipulation.
+'''A collection of tools to handle sequence manipulation.
 Part of the structmap package.
-"""
+'''
 from __future__ import absolute_import, division, print_function
 
 from io import StringIO
@@ -13,7 +13,7 @@ from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML
 
 def _sliding_window(seq_align, window, step=3, fasta_out=False):
-    """
+    '''
     Generate a Multiple Sequence Alignment over a sliding window.
 
     Input is either filehandle, or Bio.AlignIO multiple sequence alignment
@@ -28,7 +28,7 @@ def _sliding_window(seq_align, window, step=3, fasta_out=False):
     Yields:
         str/MultipleSequenceAlignment: The next window in the sliding window
             series for the original multiple sequence alignment.
-    """
+    '''
     try:
         alignments = AlignIO.read(seq_align, 'fasta')
     except AttributeError:
@@ -42,7 +42,7 @@ def _sliding_window(seq_align, window, step=3, fasta_out=False):
         yield alignment
 
 def _sliding_window_var_sites(seq_align, window, step=3):
-    """
+    '''
     Generate a Multiple Sequence Alignment over a sliding window, only
     including polymorphic sites in the alignment.
 
@@ -61,7 +61,7 @@ def _sliding_window_var_sites(seq_align, window, step=3):
         MultipleSequenceAlignment: The next window in the sliding window
             series for the original multiple sequence alignment, with
             only polymorphic sites displayed.
-    """
+    '''
     try:
         alignments = AlignIO.read(seq_align, 'fasta')
     except AttributeError:
@@ -91,7 +91,7 @@ def _sliding_window_var_sites(seq_align, window, step=3):
 
 
 def _var_site(alignment):
-    """
+    '''
     Take a multiple sequence alignment object and return polymorphic sites in a
     dictionary object.
 
@@ -103,7 +103,7 @@ def _var_site(alignment):
     Returns:
         dict: A dictionary containing polymorphic sites (value) accessed by
             position in the alignment (key).
-    """
+    '''
     result = {}
     for i in range(len(alignment[0])):
         site = alignment[:, i]
@@ -114,7 +114,7 @@ def _var_site(alignment):
     return result
 
 def _join_alignments(align_dict):
-    """
+    '''
     Take a dictionary of multiple sequence alignments, and join according to
     dictionary key order (generally position in sequence).
 
@@ -125,7 +125,7 @@ def _join_alignments(align_dict):
     Returns:
         MultipleSequenceAlignment: A multiple sequence alignment object
             containing all polymorphic sites.
-    """
+    '''
     output = None
     for key in sorted(align_dict):
         if not output:
@@ -196,7 +196,7 @@ def blast_sequences(comp_seq, ref_seq):
 
 
 def _construct_sub_align_from_chains(alignments, codons, fasta=False):
-    """
+    '''
     Take a list of structmap multiple sequence alignment objects, and
     return a subset of codons based on an input list in the form
     [('A',(1,2,3)),('B',(4,5,6)),...].
@@ -215,7 +215,7 @@ def _construct_sub_align_from_chains(alignments, codons, fasta=False):
         MulitpleSequenceAlignment: A subset of the initial alignment as a
             multiple sequence alignment object. If the fasta kwarg is set to
             True, returns a string instead.
-    """
+    '''
     chain_alignments = {}
     chain_strains = {}
     for key, alignment in alignments.items():
@@ -236,7 +236,7 @@ def _construct_sub_align_from_chains(alignments, codons, fasta=False):
     return sub_align_transpose
 
 def _construct_sub_align(alignment, codons, fasta=False):
-    """
+    '''
     Take a structmap multiple sequence alignment object, and return a
     subset of codons based on an input list in the form [(1,2,3),(4,5,6),...].
 
@@ -253,7 +253,7 @@ def _construct_sub_align(alignment, codons, fasta=False):
         MulitpleSequenceAlignment: A subset of the initial alignment as a
             multiple sequence alignment object. If the fasta kwarg is set to
             True, returns a string instead.
-    """
+    '''
     alignments = alignment.get_alignment_position_dict()
     strains = alignment.get_isolate_ids()
     codons = [x for sublist in codons for x in sublist]
@@ -271,7 +271,7 @@ def _construct_sub_align(alignment, codons, fasta=False):
 
 
 def align_protein_to_dna(prot_seq, dna_seq):
-    """
+    '''
     Aligns a protein sequence to a genomic sequence. Takes into consideration
     introns, frameshifts and reverse-sense translation.
 
@@ -287,7 +287,7 @@ def align_protein_to_dna(prot_seq, dna_seq):
     Returns:
         dict: A dictionary mapping protein residue numbers to codon positions:
             e.g. {3:(6,7,8), 4:(9,10,11), ...}
-    """
+    '''
     #TODO Use Biopython exonerate parser. Didn't realise that existed when I wrote this parser.
     with tempfile.NamedTemporaryFile(mode='w') as protein_seq_file, \
          tempfile.NamedTemporaryFile(mode='w') as dna_seq_file:

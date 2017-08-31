@@ -20,19 +20,16 @@ import structmap
 structure = structmap.Structure('1zrl.pdb', 'test_pdb_name')
 
 # The location of known polymorphisms relative to the PDB sequence (we are not
-# providing a reference sequence for this example)
-data = [200, 276, 300, 480, 367, 349]
-
-# Get the chain we are interested in - model '0' and chain 'A'.
-chain = structure[0]['A']
+# providing a reference sequence for this example), for each chain.
+data = {('A',): [200, 276, 300, 480, 367, 349]}
 
 # Map polymorphism data using a radius of 15 Angstrom. Results are returned
 # in a new object.
-results = chain.map(data, method='snps', ref=None, radius=15)
+results = structure.map(data, method='snps', ref=None, radius=15)
 
 # Use the results object to write data to a local PDB file, with data saved
 # in the B-factor column
-results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
+results.write_data_to_pdb_b_factor(fileobj='test_pdb_data_write.pdb')
 ```
 
 ### Calculation of average hydrophobicity for all surface exposed residues
@@ -45,9 +42,6 @@ import structmap
 # Initialise structure object
 structure = structmap.Structure('1zrl.pdb', 'test_pdb_name')
 
-# Get the chain we are interested in - model '0' and chain 'A'.
-chain = structure[0]['A']
-
 # For this method, the data parameter is a string which represents the amino
 # acid propensity scale we wish to use. Note the use of the optional rsa_range
 # parameter to restrict to surface exposed residues.
@@ -56,7 +50,7 @@ results = chain.map(data='kd', method='aa_scale', ref=None, radius=15,
 
 # Use the results object to write data to a local PDB file, with data saved
 # in the B-factor column
-results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
+results.write_data_to_pdb_b_factor(fileobj='test_pdb_data_write.pdb')
 ```
 
 ### Calculation of Tajima's D using protein structural information
@@ -64,19 +58,45 @@ results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
 We can also use the structmap package to calculate a modified Tajima's D value which incorporates protein structural information --- essentially using a 3D sliding window instead of the standard 2D sliding window often applied over a protein sequence.
 
 ```
-from structmap import SequenceAlignment
+import structmap
+
+# Initialise structure object
+structure = structmap.Structure('1zrl.pdb', 'test_pdb_name')
 
 # Read in multiple sequence alignment data
-msa_data = SequenceAlignment('seq_align.fsa')
+msa_data = {('A',): structmap.SequenceAlignment('seq_align.fsa')}
 
 # Reference seq might be the first sequence in the multiple sequence alignment
-reference_seq = msa_data[0]
+reference_seq = {'A': msa_data[0]}
 
-results = chain.map(data=msa_data, method='tajimas_d', ref=reference_seq,
+results = structure.map(data=msa_data, method='tajimasd', ref=reference_seq,
                     radius=15)
 
-results.write_data_to_pdb_b_factor(filename='test_pdb_data_write.pdb')
+results.write_data_to_pdb_b_factor(fileobj='test_pdb_data_write.pdb')
 ```
+
+Result can be easily viewed in PyMol using the `spectrum` command.
+
+From the Pymol command line:
+
+```
+load my_pdb_file_name_here
+
+as surface
+
+#Select all residues with a mapped data value. Can change the default 'no-value'
+#option when writing to pdb b factor using structmap if needed.
+select nonzeros, b < 0 | b > 0
+
+spectrum b, selection=nonzeros
+
+#Make a publication quality image. May need to center molecule and perhaps
+#adjust image size to your requirements.
+set ray_opaque_background, off
+ray 2400, 2400
+cmd.png('output_file_name.png', dpi=300)
+```
+
 ## Prerequisites
 
 Installing the Structmap package requires both an install of the main package, as well as install of a few external binaries (NCBI BLAST+, Exonerate and DSSP).

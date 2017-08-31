@@ -44,7 +44,6 @@ from __future__ import absolute_import, division, print_function
 
 import contextlib
 from copy import deepcopy
-from os import path
 from tempfile import NamedTemporaryFile
 from Bio.PDB import DSSP, PDBIO, PDBParser, FastMMCIFParser
 from Bio import AlignIO

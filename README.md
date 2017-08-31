@@ -5,15 +5,15 @@ Structmap is a Python tool for mapping sequence-aligned data (such as location o
 Additionally, Structmap allows for the incorporation of residue spatial-proximity into sliding-window calculations, and can be used to incorporate protein structure information into genetic tests of selection pressure.
 
 # Table of Contents
-1. [Usage Examples](#usage-examples)
-2. [Prerequisites](#prerequisites)
-3. [Installing](#installing)
-4. [Testing](#running-the-tests)
-5. [Contributing](#contributing)
-6. [Versioning](#versioning)
-7. [Authors](#authors)
-8. [License](#license)
-9. [Acknowledgments](#acknowledgments)
+- [Usage Examples](#usage-examples)
+- [Prerequisites](#prerequisites)
+- [Installing](#installing)
+- [Testing](#running-the-tests)
+- [Contributing](#contributing)
+- [Versioning](#versioning)
+- [Authors](#authors)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ## Getting Started
 

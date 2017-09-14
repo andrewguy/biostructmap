@@ -262,6 +262,22 @@ class TestSeqtools(TestCase):
         self.assertEqual(forward_match, test_map_forward)
         self.assertEqual(reverse_match, test_map_reverse)
 
+    def test_pairwise_align_sequences(self):
+        seq1 = "GSNAKFGLWVDGNCEDIPHVNEFPAID"
+        seq1_bio = Seq(seq1)
+        seq2 = "NAKFGLWV"
+        seq2_bio = Seq(seq2)
+        test_map_forward, test_map_reverse = seqtools.pairwise_align(seq1, seq2)
+        forward_match = {3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 8: 6, 9: 7, 10: 8}
+        reverse_match = {1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10}
+        #Check alignment for string input
+        self.assertEqual(forward_match, test_map_forward)
+        self.assertEqual(reverse_match, test_map_reverse)
+        #Check alignment for Bio.Seq input
+        test_map_forward, test_map_reverse = seqtools.pairwise_align(seq1_bio, seq2_bio)
+        self.assertEqual(forward_match, test_map_forward)
+        self.assertEqual(reverse_match, test_map_reverse)
+
     def test_blast_sequences_with_gaps_in_first_sequence(self):
         '''Test with reverse input (ie gaps in first sequence)'''
         seq1 = "GSNAKFGLWVDGNCEDIPHVNEFPAID"
@@ -276,6 +292,23 @@ class TestSeqtools(TestCase):
         self.assertEqual(reverse_match, test_map_reverse)
         #Check alignment for Bio.Seq input
         test_map_forward, test_map_reverse = seqtools.blast_sequences(seq1_bio, seq2_bio)
+        self.assertEqual(forward_match, test_map_forward)
+        self.assertEqual(reverse_match, test_map_reverse)
+
+    def test_pairwise_align_sequences_with_gaps_in_first_sequence(self):
+        '''Test with reverse input (ie gaps in first sequence)'''
+        seq1 = "GSNAKFGLWVDGNCEDIPHVNEFPAID"
+        seq1_bio = Seq(seq1)
+        seq2 = "NAKFLWVDG"
+        seq2_bio = Seq(seq2)
+        test_map_reverse, test_map_forward = seqtools.pairwise_align(seq2, seq1)
+        forward_match = {3: 1, 4: 2, 5: 3, 6: 4, 8: 5, 9: 6, 10: 7, 11: 8, 12: 9}
+        reverse_match = {1: 3, 2: 4, 3: 5, 4: 6, 5: 8, 6: 9, 7: 10, 8: 11, 9: 12}
+        #Check alignment for string input
+        self.assertEqual(forward_match, test_map_forward)
+        self.assertEqual(reverse_match, test_map_reverse)
+        #Check alignment for Bio.Seq input
+        test_map_forward, test_map_reverse = seqtools.pairwise_align(seq1_bio, seq2_bio)
         self.assertEqual(forward_match, test_map_forward)
         self.assertEqual(reverse_match, test_map_reverse)
 

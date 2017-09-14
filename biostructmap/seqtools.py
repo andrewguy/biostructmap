@@ -11,6 +11,8 @@ import tempfile
 from Bio import AlignIO
 from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML
+from Bio.pairwise2 import align
+from Bio.SubsMat import MatrixInfo as matlist
 
 def _sliding_window(seq_align, window, step=3, fasta_out=False):
     '''
@@ -134,6 +136,47 @@ def _join_alignments(align_dict):
             output = output + align_dict[key]
     return output
 
+def pairwise_align(comp_seq, ref_seq):
+    '''
+    Perform a pairwise alignment of two sequences.
+
+    Uses the BioPython pairwise2 module with the BLOSUM62 matrix for scoring
+    similarity. Gap opening penalty is -11 and gap extend penalty is -1,
+    which is the same as the default blastp parameters.
+
+    Output is two dictionaries: residue numbering in PDB chain (key) mapped to
+    the residue position in the reference sequence (value), and vice versa.
+
+    Args:
+        comp_seq (str): A comparison protein sequence.
+        ref_seq (str): A reference protein sequence.
+
+    Returns:
+        dict: A dictionary mapping comparison sequence numbering (key) to
+            reference sequence numbering (value)
+        dict: A dictionary mapping reference sequence numbering (key) to
+            comparison sequence numbering (value)
+    '''
+    alignment = align.globalds(comp_seq, ref_seq, matlist.blosum62, -11, -1,
+                               penalize_end_gaps=False, one_alignment_only=True)[0]
+    query_string = alignment[0]
+    sbjct_string = alignment[1]
+    #Create dictionary mapping position in PDB chain to position in ref sequence
+    pdb_to_ref = {}
+    ref_to_pdb = {}
+    key = 1
+    ref = 1
+    for i, res in enumerate(query_string):
+        if res.isalpha() and sbjct_string[i].isalpha():
+            pdb_to_ref[key] = ref
+            ref_to_pdb[ref] = key
+            key += 1
+            ref += 1
+        elif res.isalpha():
+            key += 1
+        elif sbjct_string[i].isalpha():
+            ref += 1
+    return pdb_to_ref, ref_to_pdb
 
 def blast_sequences(comp_seq, ref_seq):
     '''

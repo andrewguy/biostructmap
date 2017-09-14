@@ -10,7 +10,7 @@ from Bio.Data.SCOPData import protein_letters_3to1
 from Bio.PDB.Polypeptide import PPBuilder
 import numpy as np
 from scipy.spatial import distance
-from .seqtools import blast_sequences
+from .seqtools import align_protein_sequences
 
 SS_LOOKUP_DICT = {
     'H': 0,
@@ -294,7 +294,8 @@ def match_pdb_residue_num_to_seq(model, ref=None):
         peptide_sequence = peptide.get_sequence()
         # Presume that peptide belongs to a single chain
         chain_id = peptide[0].get_full_id()[2]
-        _, ref_to_pdb = blast_sequences(peptide_sequence, ref[chain_id])
+        _, ref_to_pdb = align_protein_sequences(peptide_sequence, ref[chain_id])
+
         for ref_pos, pdb_pos in ref_to_pdb.items():
             output[(chain_id, ref_pos)] = peptide[pdb_pos - 1].get_full_id()[2:4]
     return output

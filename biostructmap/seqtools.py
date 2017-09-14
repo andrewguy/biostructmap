@@ -14,6 +14,9 @@ from Bio.Blast import NCBIXML
 from Bio.pairwise2 import align
 from Bio.SubsMat import MatrixInfo as matlist
 
+#Use local BLAST+ installation. Falls back to pairwise2 if False.
+LOCAL_BLAST = True
+
 def _sliding_window(seq_align, window, step=3, fasta_out=False):
     '''
     Generate a Multiple Sequence Alignment over a sliding window.
@@ -135,6 +138,28 @@ def _join_alignments(align_dict):
         else:
             output = output + align_dict[key]
     return output
+
+def align_protein_sequences(comp_seq, ref_seq):
+    '''
+    Perform a pairwise alignment of two sequences.
+
+    Uses BLAST+ if LOCAL_BLAST is set to True, otherwise uses Bio.pairwise2.
+
+    Args:
+        comp_seq (str): A comparison protein sequence.
+        ref_seq (str): A reference protein sequence.
+
+    Returns:
+        dict: A dictionary mapping comparison sequence numbering (key) to
+            reference sequence numbering (value)
+        dict: A dictionary mapping reference sequence numbering (key) to
+            comparison sequence numbering (value)
+    '''
+    if LOCAL_BLAST:
+        return blast_sequences(comp_seq, ref_seq)
+    else:
+        return pairwise_align(comp_seq, ref_seq)
+
 
 def pairwise_align(comp_seq, ref_seq):
     '''

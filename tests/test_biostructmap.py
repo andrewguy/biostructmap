@@ -10,7 +10,7 @@ from Bio.Seq import Seq
 from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 from biostructmap import biostructmap, seqtools, gentests, pdbtools
 from biostructmap.seqtools import (_sliding_window, _sliding_window_var_sites,
-                               _construct_sub_align)
+                                   _construct_sub_align)
 from biostructmap.gentests import _tajimas_d
 from biostructmap.pdbtools import _euclidean_distance_matrix
 from biostructmap.map_functions import _tajimas_d
@@ -469,6 +469,34 @@ class Testbiostructmap(TestCase):
         #Test that an rsa_range of 0-1 doesn't change results
         rsa_mapping = structure.map(data, rsa_range=[0,1])
         self.assertDictEqual(rsa_mapping, mapping)
+
+    def test_default_mapping_procedure_with_pairwise(self):
+        seqtools.LOCAL_BLAST = False
+        structure = biostructmap.Structure(self.test_file)
+        chain = biostructmap.Structure(self.test_file)[0]['A']
+        data = {'A': [x for x in range(0, 25)]}
+        mapping = structure.map(data)
+        for residue in [residues for residues in chain if residues.get_id()[0] == ' ']:
+            result = mapping[residue.get_full_id()[2:4]]
+            self.assertTrue(isinstance(result, float))
+        mapping = structure.map(data, method='default', ref=None, radius=0, selector='all')
+        nondetermined_residues = [1, 2, 3]
+        for residue in [residues for residues in chain if
+                        residues.get_id()[0] == ' ' and
+                        residues.get_id()[1] not in nondetermined_residues]:
+            result = mapping[residue.get_full_id()[2:4]]
+            self.assertEqual(result, residue.get_id()[1])
+        #Test if data is in a dictionary
+        mapping = structure.map({'A': {x:x for x in range(0, 25)}})
+        for residue in [residues for residues in chain if
+                        residues.get_id()[0] == ' ' and
+                        residues.get_id()[1] not in nondetermined_residues]:
+            result = mapping[residue.get_full_id()[2:4]]
+            self.assertTrue(isinstance(result, float))
+        #Test that an rsa_range of 0-1 doesn't change results
+        rsa_mapping = structure.map(data, rsa_range=[0,1])
+        self.assertDictEqual(rsa_mapping, mapping)
+        seqtools.LOCAL_BLAST = True
 
     def test_rsa_filtering_procedure(self):
         data = {'A': [x for x in range(0, 25)]}

@@ -52,8 +52,8 @@ from . import pdbtools, gentests
 from .pdbtools import match_pdb_residue_num_to_seq, SS_LOOKUP_DICT, mmcif_sequence_to_res_id
 from .map_functions import (_tajimas_d, _default_mapping, _snp_mapping,
                             _map_amino_acid_scale, _count_residues)
-from .seqtools import (blast_sequences, align_protein_to_dna,
-                       _construct_sub_align)
+from .seqtools import (align_protein_to_dna, _construct_sub_align, align_protein_sequences)
+
 
 @contextlib.contextmanager
 def open_if_string(path_or_file, mode):
@@ -205,7 +205,8 @@ class DataMap(dict):
                     f.write(line)
         else:
             seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self.chain, self.chain.sequence)
-            pdbindex_to_ref, _ = blast_sequences(self.chain.sequence, ref)
+            pdbindex_to_ref, _ = align_protein_sequences(self.chain.sequence, ref)
+
             pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x
                              in pdbindex_to_ref if x in seq_index_to_pdb_numb}
             with open_if_string(fileobj, 'w') as f:
@@ -452,7 +453,9 @@ class Structure(object):
                 chain_pdbindex_to_ref = align_protein_to_dna(self.sequences[chain_id], ref_seq)
             #Generate mapping of pdb sequence index to reference sequence (also indexed by position)
             else:
-                chain_pdbindex_to_ref, _ = blast_sequences(self.sequences[chain_id], ref_seq)
+                chain_pdbindex_to_ref, _ = align_protein_sequences(self.sequences[chain_id],
+                                                                   ref_seq)
+
             pdb_index_to_ref.update({(chain_id, key): (chain_id, value) for
                                      key, value in chain_pdbindex_to_ref.items()})
 
@@ -763,7 +766,8 @@ class Chain(object):
                     f.write(line)
         else:
             seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
-            pdbindex_to_ref, _ = blast_sequences(self.sequence, ref)
+            pdbindex_to_ref, _ = align_protein_sequences(self.sequence, ref)
+
             pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x
                              in pdbindex_to_ref if x in seq_index_to_pdb_numb}
             with open(output, 'w') as f:

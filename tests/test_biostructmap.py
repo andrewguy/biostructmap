@@ -325,6 +325,21 @@ class TestSeqtools(TestCase):
         sorted_codons = [result[i] for i in sorted(result)]
         self.assertEqual(result_codons_to_match, sorted_codons)
 
+    def test_protein_dna_alignment_without_exonerate(self):
+        '''Need to account for an intron frameshift when converting from DNA to
+        protein sequence.
+        '''
+        seqtools.LOCAL_EXONERATE = False
+        dna = 'ATGAAATGTAATATTAGTATATATTTTTTTATGAAATGTAATATTAGTATATATTTTTTT'
+        protein = 'MKCNISIYFFMKCNISIYFF'
+        result = seqtools.align_protein_to_dna(protein, dna)
+        result_keys_to_match = [i for i in range(1, 21)]
+        result_codons_to_match = [(i*3-2, i*3-1, i*3) for i in range(1, 21)]
+        self.assertEqual(result_keys_to_match, sorted(result))
+        sorted_codons = [result[i] for i in sorted(result)]
+        self.assertEqual(result_codons_to_match, sorted_codons)
+        seqtools.LOCAL_EXONERATE = True
+
     def test_protein_dna_alignment_with_intron(self):
         '''Need to account for an intron frameshift when converting from DNA to
         protein sequence.

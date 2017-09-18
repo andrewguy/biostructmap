@@ -13,9 +13,15 @@ from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML
 from Bio.pairwise2 import align
 from Bio.SubsMat import MatrixInfo as matlist
+from Bio.Seq import Seq
+from Bio.Alphabet import generic_dna
 
 #Use local BLAST+ installation. Falls back to pairwise2 if False.
 LOCAL_BLAST = True
+#Use local exonerate installation to align dna to protein sequences.
+#Falls back to a basic method using either BLAST+ or pairwise2 if False,
+#but won't take into consideration introns or frameshift mutations.
+LOCAL_EXONERATE = True
 
 def _sliding_window(seq_align, window, step=3, fasta_out=False):
     '''
@@ -160,6 +166,60 @@ def align_protein_sequences(comp_seq, ref_seq):
     else:
         return pairwise_align(comp_seq, ref_seq)
 
+
+def align_protein_to_dna(prot_seq, dna_seq):
+    '''
+    Aligns a protein sequence to a genomic sequence.
+
+    If LOCAL_EXONERATE flag is set to True, takes into consideration
+    introns, frameshifts and reverse-sense translation if using Exonerate.
+
+    If LOCAL_EXONERATE flag is set to False, then a simple translation and
+    pairwise alignment is performed, and does not consider introns, frameshifts
+    or reverse-sense translations.
+
+    Note:
+        This method uses the external program Exonerate:
+        http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate
+        This needs to be installed in the users PATH.
+
+    Args:
+        prot_seq (str): A protein sequence.
+        dna_seq (str): A genomic or coding DNA sequence
+
+    Returns:
+        dict: A dictionary mapping protein residue numbers to codon positions:
+            e.g. {3:(6,7,8), 4:(9,10,11), ...}
+    '''
+    if LOCAL_EXONERATE:
+        return _align_prot_to_dna_exonerate(prot_seq, dna_seq)
+    else:
+        return _align_prot_to_dna_no_exonerate(prot_seq, dna_seq)
+
+
+
+def _align_prot_to_dna_no_exonerate(prot_seq, dna_seq):
+    '''
+    Aligns a protein sequence to a genomic sequence. Does not take consider
+    introns, frameshifts or reverse-sense translation.
+    If these are required, should use Exonerate method instead.
+
+    Args:
+        prot_seq (str): A protein sequence.
+        dna_seq (str): A genomic or coding DNA sequence
+
+    Returns:
+        dict: A dictionary mapping protein residue numbers to codon positions:
+            e.g. {3:(6,7,8), 4:(9,10,11), ...}
+    '''
+    #Translate DNA sequence to protein sequence
+    dna_prot_seq = str(Seq(dna_seq, generic_dna).translate())
+    #Use existing methods to align protein-protein
+    prot_dna_dict, _ = align_protein_sequences(prot_seq, dna_prot_seq)
+    #Convert output to protein: codon dict
+    protein_to_codons = {key: (value*3-2, value*3-1, value*3) for
+                         key, value in prot_dna_dict.items()}
+    return protein_to_codons
 
 def pairwise_align(comp_seq, ref_seq):
     '''
@@ -338,7 +398,7 @@ def _construct_sub_align(alignment, codons, fasta=False):
     return sub_align_transpose
 
 
-def align_protein_to_dna(prot_seq, dna_seq):
+def _align_prot_to_dna_exonerate(prot_seq, dna_seq):
     '''
     Aligns a protein sequence to a genomic sequence. Takes into consideration
     introns, frameshifts and reverse-sense translation.

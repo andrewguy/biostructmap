@@ -394,6 +394,9 @@ class Structure(object):
                 surface exposed residues.
             map_to_dna (bool, optional): Set True if the mapping method involves
                 aligning to a DNA sequence. Defaults to False.
+            method_params (dict): Additional parameters to pass to a data
+                aggregation method. Dictionary keys/values are function keyword
+                arguments and associated values.
 
         Returns:
             biostructmap.DataMap: A dictionary-like object which contains mapped

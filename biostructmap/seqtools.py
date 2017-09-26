@@ -303,23 +303,24 @@ def blast_sequences(comp_seq, ref_seq):
             if hsp.score > temp_score:
                 temp_score = hsp.score
                 high_scoring_hsp = hsp
-    query_string = high_scoring_hsp.query
-    sbjct_string = high_scoring_hsp.sbjct
     #Create dictionary mapping position in PDB chain to position in ref sequence
     pdb_to_ref = {}
     ref_to_pdb = {}
-    key = high_scoring_hsp.query_start
-    ref = high_scoring_hsp.sbjct_start
-    for i, res in enumerate(query_string):
-        if res.isalpha() and sbjct_string[i].isalpha():
-            pdb_to_ref[key] = ref
-            ref_to_pdb[ref] = key
-            key += 1
-            ref += 1
-        elif res.isalpha():
-            key += 1
-        elif sbjct_string[i].isalpha():
-            ref += 1
+    if high_scoring_hsp is not None:
+        query_string = high_scoring_hsp.query
+        sbjct_string = high_scoring_hsp.sbjct
+        key = high_scoring_hsp.query_start
+        ref = high_scoring_hsp.sbjct_start
+        for i, res in enumerate(query_string):
+            if res.isalpha() and sbjct_string[i].isalpha():
+                pdb_to_ref[key] = ref
+                ref_to_pdb[ref] = key
+                key += 1
+                ref += 1
+            elif res.isalpha():
+                key += 1
+            elif sbjct_string[i].isalpha():
+                ref += 1
     return pdb_to_ref, ref_to_pdb
 
 

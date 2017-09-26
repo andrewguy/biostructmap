@@ -73,12 +73,60 @@ def _tajimas_d(_structure, alignments, residues, ref):
     tajd = gentests.tajimas_d(sub_align)
     return tajd
 
+def _dnds(_structure, alignments, residues, ref, treefile):
+    '''Calculate dn/ds for selected residues within a PDB chain.
 
-def _default_mapping(_structure, data, residues, ref, ignore_duplicates=True):
-    '''Calculate an average of all data points over selected residues.
+    Input is Chain object, multiple sequence alignment object,
+    list of surrounding residues, a dictionary giving mapping
+    of PDB residue number to codon positions, and a treefile to pass to PAML.
+
+    Args:
+        alignments (dict): A dictionary of multiple sequence alignments
+            for each unique chain in the protein structure. Dictionary keys
+            should be chain IDs.
+        ref: A dictionary mapping PDB residue number to codon positions
+            relative to the supplied multiple sequence alignment.
+        treefile (str/file-like): A treefile to pass to PAML for calculation of
+            dN/dS.
+    Returns:
+        float: dN/dS value.
+    '''
+    #Not currently implemented properly
+    raise NotImplementedError
+    chains = alignments.keys()
+    #filter list of residues based on those that have mapped codons:
+    ref_residues = [ref[x] for x in residues if x in ref]  # Returns [('A', (15,16,17)), ...]
+    # Remove duplicate items (i.e. same data point, different chains) from
+    # list of residues and set chain identifier to match alignment keys.
+    codons = set([(chain, x[1]) for chain in chains
+                  for x in ref_residues if x[0] in chain])
+    #Get alignment bp from selected codons
+    sub_align = _construct_sub_align_from_chains(alignments, codons, fasta=False)
+    #Run external tool over sub alignment.
+    with tempfile.NamedTemporaryFile(mode='w') as seq_file:
+        seq_file.write(sub_align)
+        seq_file.flush()
+        process = subprocess.run(["/opt/bin/possum", "-f", "dnafasta", "-q", "-v", seq_file.name],
+                                 stdout=subprocess.PIPE)
+    try:
+        output = float(process.stdout.decode().strip().split('\t')[-1])
+    except ValueError:
+        output = None
+    return output
+
+def _default_mapping(_structure, data, residues, ref, ignore_duplicates=True,
+                     method=np.mean):
+    '''Apply a data aggregation function over all data points over selected residues.
+
+    Args:
+        ignore_duplicates (bool): Ignore duplicate data points (i.e. from
+            identical chains in a multi-chain structure).
+        method (function): A data aggregation function. Should take a list of
+            numeric values as input, and return a single numeric value. Default
+            function is the arithmetic mean.
 
     Returns:
-        float: Average of all data points within a radius.
+        float: Aggregated value for all data points within a radius.
     '''
     chains = data.keys()
     #filter list of residues based on those that have mapped reference
@@ -89,10 +137,10 @@ def _default_mapping(_structure, data, residues, ref, ignore_duplicates=True):
         residues = set(residues)
     data_points = [data[res[0]][res[1]] for res in residues]
     if data_points:
-        average = np.mean(data_points)
+        result = method(data_points)
     else:
-        average = None
-    return average
+        result = None
+    return result
 
 
 def _snp_mapping(_structure, data, residues, ref, ignore_duplicates=True,

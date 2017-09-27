@@ -78,7 +78,7 @@ structure = biostructmap.Structure('1zrl.pdb', 'test_pdb_name')
 msa_data = {('A',): biostructmap.SequenceAlignment('seq_align.fsa')}
 
 # Reference seq might be the first sequence in the multiple sequence alignment
-reference_seq = {'A': msa_data[0]}
+reference_seq = {'A': str(msa_data[0].seq)}
 
 results = structure.map(data=msa_data, method='tajimasd', ref=reference_seq,
                     radius=15)

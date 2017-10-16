@@ -75,7 +75,8 @@ import biostructmap
 structure = biostructmap.Structure('1zrl.pdb', 'test_pdb_name')
 
 # Read in multiple sequence alignment data
-msa_data = {('A',): biostructmap.SequenceAlignment('seq_align.fsa')}
+msa_data = biostructmap.SequenceAlignment('seq_align.fsa')
+data = {('A',): msa_data}
 
 # Reference seq might be the first sequence in the multiple sequence alignment
 reference_seq = {'A': str(msa_data[0].seq)}

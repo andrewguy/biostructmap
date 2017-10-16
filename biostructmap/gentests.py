@@ -84,3 +84,55 @@ def _tajimas_d(alignment):
     except ZeroDivisionError:
         taj_d = None
     return taj_d
+
+def nucleotide_diversity(alignment):
+    """
+    Use DendroPy to calculate nucleotide diversity.
+
+    If nucleotide diversity is undefined, returns None.
+
+    Args:
+        alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
+            alignment string in FASTA format or a multiple sequence alignment
+            object, either as a Bio.Align.MultipleSequenceAlignment or a
+            biostructmap.SequenceAlignment object.
+
+    Returns:
+        float: Nucleotide diversity value. Returns None if nucleotide
+            diversity is undefined.
+    """
+    if not isinstance(alignment, str):
+        data = alignment.format('fasta')
+    else:
+        data = alignment
+    if not alignment or len(alignment[0]) == 0:
+        return None
+    seq = dendropy.DnaCharacterMatrix.get(data=data, schema='fasta')
+    diversity = dendropy.calculate.popgenstat.nucleotide_diversity(seq)
+    return diversity
+
+def wattersons_theta(alignment):
+    """
+    Use DendroPy to calculate Watterson's Theta.
+
+    If Watterson's Theta is undefined, returns None.
+
+    Args:
+        alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
+            alignment string in FASTA format or a multiple sequence alignment
+            object, either as a Bio.Align.MultipleSequenceAlignment or a
+            biostructmap.SequenceAlignment object.
+
+    Returns:
+        float: Watterson's Theta value. Returns None if Watterson's Theta is
+            undefined.
+    """
+    if not isinstance(alignment, str):
+        data = alignment.format('fasta')
+    else:
+        data = alignment
+    if not alignment or len(alignment[0]) == 0:
+        return None
+    seq = dendropy.DnaCharacterMatrix.get(data=data, schema='fasta')
+    theta = dendropy.calculate.popgenstat.wattersons_theta(seq)
+    return theta

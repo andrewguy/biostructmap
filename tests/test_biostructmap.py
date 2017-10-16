@@ -393,6 +393,14 @@ class TestGentests(TestCase):
         taj_d = gentests._tajimas_d(self.small_alignment)
         self.assertEqual(taj_d, None)
 
+    def test_nucleotide_diversity_calculation(self):
+        diversity = gentests.nucleotide_diversity(self.small_alignment)
+        self.assertAlmostEqual(diversity, 2 / (3 * 31))
+
+    def test_wattersons_theta_calculation(self):
+        theta = gentests.wattersons_theta(self.small_alignment)
+        self.assertAlmostEqual(theta, 1/1.5)
+
 class Testbiostructmap(TestCase):
     def setUp(self):
         self.test_file = './tests/pdb/1as5.pdb'

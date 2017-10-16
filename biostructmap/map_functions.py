@@ -60,18 +60,52 @@ def _tajimas_d(_structure, alignments, residues, ref):
     Returns:
         float: Tajima's D value. Returns None if Tajima's D is undefined.
     '''
-    chains = alignments.keys()
-    #filter list of residues based on those that have mapped codons:
-    ref_residues = [ref[x] for x in residues if x in ref]  # Returns [('A', (15,16,17)), ...]
-    # Remove duplicate items (i.e. same data point, different chains) from
-    # list of residues and set chain identifier to match alignment keys.
-    codons = set([(chain, x[1]) for chain in chains
-                  for x in ref_residues if x[0] in chain])
-    #Get alignment bp from selected codons
-    sub_align = _construct_sub_align_from_chains(alignments, codons, fasta=True)
-    #Compute Tajima's D using selected codons.
-    tajd = gentests.tajimas_d(sub_align)
+    tajd = _genetic_test_wrapper(_structure, alignments, residues, ref,
+                                 gentests.tajimas_d)
     return tajd
+
+def _wattersons_theta(_structure, alignments, residues, ref):
+    '''Calculate wattersons theta for selected residues within a PDB chain.
+
+    Input is Chain object, multiple sequence alignment object,
+    list of surrounding residues, and a dictionary giving mapping
+    of PDB residue number to codon positions.
+
+    Args:
+        alignments (dict): A dictionary of multiple sequence alignments
+            for each unique chain in the protein structure. Dictionary keys
+            should be chain IDs.
+        ref: A dictionary mapping PDB residue number to codon positions
+            relative to the supplied multiple sequence alignment.
+    Returns:
+        float: Wattersons theta. Returns None if wattersons theta
+            is undefined.
+    '''
+    theta = _genetic_test_wrapper(_structure, alignments, residues, ref,
+                                  gentests.wattersons_theta)
+    return theta
+
+def _nucleotide_diversity(_structure, alignments, residues, ref):
+    '''Calculate nucleotide diversity for selected residues within a PDB chain.
+
+    Input is Chain object, multiple sequence alignment object,
+    list of surrounding residues, and a dictionary giving mapping
+    of PDB residue number to codon positions.
+
+    Args:
+        alignments (dict): A dictionary of multiple sequence alignments
+            for each unique chain in the protein structure. Dictionary keys
+            should be chain IDs.
+        ref: A dictionary mapping PDB residue number to codon positions
+            relative to the supplied multiple sequence alignment.
+    Returns:
+        float: Nucleotide diversity. Returns None if nucleotide diversity
+            is undefined.
+    '''
+    nucleotide_diversity = _genetic_test_wrapper(_structure, alignments,
+                                                 residues, ref,
+                                                 gentests.nucleotide_diversity)
+    return nucleotide_diversity
 
 def _dnds(_structure, alignments, residues, ref, treefile):
     '''Calculate dn/ds for selected residues within a PDB chain.
@@ -225,3 +259,37 @@ def _map_amino_acid_scale(structure, data, residues, _ref):
     #Compute mean of scale over all residues within window
     result = np.mean([scale[aa] for aa in aminoacids])
     return result
+
+def _genetic_test_wrapper(_structure, alignments, residues, ref, genetic_test):
+    '''Helper function to generate a multiple sequence alignment from selected
+    codons and pass to given function.
+
+    Input is Chain object, multiple sequence alignment object,
+    list of surrounding residues, a dictionary giving mapping
+    of PDB residue number to codon positions, and function to pass subset of
+    sequence alignment to. Used for genetic tests such as Tajima's D and
+    Watterson's theta etc.
+
+    Args:
+        alignments (dict): A dictionary of multiple sequence alignments
+            for each unique chain in the protein structure. Dictionary keys
+            should be chain IDs.
+        ref: A dictionary mapping PDB residue number to codon positions
+            relative to the supplied multiple sequence alignment.
+        genetic_test: A function that takes a multiple sequence alignment as
+            input and returns a numeric value.
+    Returns:
+        float: Returned value from `genetic_test` function.
+    '''
+    chains = alignments.keys()
+    #filter list of residues based on those that have mapped codons:
+    ref_residues = [ref[x] for x in residues if x in ref]  # Returns [('A', (15,16,17)), ...]
+    # Remove duplicate items (i.e. same data point, different chains) from
+    # list of residues and set chain identifier to match alignment keys.
+    codons = set([(chain, x[1]) for chain in chains
+                  for x in ref_residues if x[0] in chain])
+    #Get alignment bp from selected codons
+    sub_align = _construct_sub_align_from_chains(alignments, codons, fasta=True)
+    #Compute Tajima's D using selected codons.
+    score = genetic_test(sub_align)
+    return score

@@ -51,7 +51,8 @@ from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 from . import pdbtools, gentests
 from .pdbtools import match_pdb_residue_num_to_seq, SS_LOOKUP_DICT, mmcif_sequence_to_res_id
 from .map_functions import (_tajimas_d, _default_mapping, _snp_mapping,
-                            _map_amino_acid_scale, _count_residues)
+                            _map_amino_acid_scale, _count_residues,
+                            _nucleotide_diversity, _wattersons_theta)
 from .seqtools import (align_protein_to_dna, _construct_sub_align, align_protein_sequences)
 
 
@@ -419,7 +420,9 @@ class Structure(object):
                    "tajimasd":_tajimas_d,
                    "snps": _snp_mapping,
                    "aa_scale": _map_amino_acid_scale,
-                   "count_residues": _count_residues}
+                   "count_residues": _count_residues,
+                   "nucleotide_diversity": _nucleotide_diversity,
+                   "wattersons_theta": _wattersons_theta}
 
         if method in methods:
             method = methods[method]

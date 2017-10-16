@@ -100,6 +100,8 @@ as surface
 #option when writing to pdb b factor using biostructmap if needed.
 select nonzeros, b < 0 | b > 0
 
+color white
+
 spectrum b, selection=nonzeros
 
 #Make a publication quality image. May need to center molecule and perhaps

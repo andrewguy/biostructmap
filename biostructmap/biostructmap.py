@@ -101,7 +101,8 @@ class DataMap(dict):
         super(DataMap, self).__init__(*args, **kw)
 
 
-    def write_data_to_pdb_b_factor(self, default_no_value=0, fileobj=None):
+    def write_data_to_pdb_b_factor(self, default_no_value=0, fileobj=None,
+                                   scale_factor=1):
         '''Write mapped data to PDB B-factor column, and save as a PDB file.
 
         This method allows for data visualisation over the PDB structure
@@ -144,9 +145,9 @@ class DataMap(dict):
                     if atom.is_disordered():
                         for altloc in atom.disordered_get_id_list():
                             atom.disordered_select(altloc)
-                            atom.set_bfactor(float(_data))
+                            atom.set_bfactor(float(_data * scale_factor))
                     else:
-                        atom.set_bfactor(float(_data))
+                        atom.set_bfactor(float(_data * scale_factor))
         pdb_io = PDBIO()
         pdb_io.set_structure(_structure.structure)
         # Write structure to PDB file

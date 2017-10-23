@@ -58,7 +58,7 @@ setup(
     test_suite='tests.test_biostructmap',
     classifiers=[
         'Programming Language :: Python',
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Natural Language :: English',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',

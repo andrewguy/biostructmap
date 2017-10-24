@@ -23,7 +23,7 @@ def read(*filenames, **kwargs):
             buf.append(f.read())
     return sep.join(buf)
 
-LONG_DESCRIPTION = read('README.md', 'CHANGES.txt')
+LONG_DESCRIPTION = read('README.rst', 'CHANGES.txt')
 
 class PyTest(TestCommand):
     def finalize_options(self):
@@ -39,7 +39,8 @@ class PyTest(TestCommand):
 setup(
     name='biostructmap',
     version=__version__,
-    url='',
+    url='https://github.com/andrewguy/biostructmap',
+    download_url='https://github.com/andrewguy/biostructma/archive/0.2.0.tar.gz'
     author='Andrew Guy',
     tests_require=['pytest'],
     setup_requires=['numpy'],
@@ -49,8 +50,8 @@ setup(
                       'scipy'
                      ],
     cmdclass={'test': PyTest},
-    author_email='andrewguy@burnet.edu.au',
-    description='A simple package for mapping data onto protein PDB structures',
+    author_email='andrewjguy42@gmail.com',
+    description='A package for mapping biological data onto protein PDB structures',
     long_description=LONG_DESCRIPTION,
     packages=['biostructmap'],
     include_package_data=True,

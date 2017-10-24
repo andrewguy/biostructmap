@@ -1,0 +1,15 @@
+v0.2.1post1, 2017-10-24 -- Include CHANGES.txt in distributed files (oops!)
+
+v0.2.1, 2017-10-24 -- Minor changes to documentation and distribution
+
+v0.2.0, 2017-10-24 -- Major update, first release since making biostructmap public.
+ * Added features:
+   * Additional genetic tests (Watterson's theta, nucleotide diversity)
+   * Added multi-chain support. This allows mapping of data from different chains.
+   * Some code refactoring was performed. map method is now available from the Structure class, not each individual Chain.
+ * Data requirements altered slightly. Each data object should be associated with a particular set of structure chains e.g. {('A', 'B'): data_1, ('C',): data_2}
+ * Reference sequences should be provided for each chain: {'A': seq_1, 'B': seq_1, 'C': seq_2}
+
+v0.1.1, 2016-02-24 -- Some bug fixes
+
+v0.1.0, 2016-02-12 -- Initial Release

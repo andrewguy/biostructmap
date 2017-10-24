@@ -40,7 +40,7 @@ setup(
     name='biostructmap',
     version=__version__,
     url='https://github.com/andrewguy/biostructmap',
-    download_url='https://github.com/andrewguy/biostructma/archive/0.2.0.tar.gz',
+    download_url='https://github.com/andrewguy/biostructma/archive/{0}.tar.gz'.format(__version__),
     author='Andrew Guy',
     tests_require=['pytest'],
     setup_requires=['numpy'],

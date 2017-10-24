@@ -1,0 +1,8 @@
+# MANIFEST.in
+#
+# This tells distutils what files to distribute.
+
+include CONTRIBUTING.rst
+include LICENSE.txt
+include README.rst
+include CHANGES.txt

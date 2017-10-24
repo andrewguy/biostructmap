@@ -192,24 +192,23 @@ Tajima's D over a protein structure using a multiple sequence alignment
 this functionality is not required, then biostructmap can be installed
 and run without Exonerate, although some of the tests will fail.
 
-Numpy, Scipy:
+Numpy:
 ^^^^^^^^^^^^^
 
-Before install biostructmap it is recommended to install Numpy and Scipy
+Before install biostructmap it is recommended to install Numpy
 using your Python package manager of choice (eg pip or conda). If you
-are using the Anaconda distribution of Python, then both NumPy and SciPy
-should be installed already. If not, or if you are using a virtual
-environment:
+are using the Anaconda distribution of Python, then Numpy should be installed
+already. If not, or if you are using a virtual environment:
 
 ::
 
-    conda install numpy scipy
+    conda install numpy
 
 or
 
 ::
 
-    pip install numpy scipy
+    pip install numpy
 
 Installing
 ----------

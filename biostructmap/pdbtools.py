@@ -9,7 +9,6 @@ from Bio.SeqUtils import seq1
 from Bio.Data.SCOPData import protein_letters_3to1
 from Bio.PDB.Polypeptide import PPBuilder
 import numpy as np
-from scipy.spatial import distance
 from .seqtools import align_protein_sequences
 
 SS_LOOKUP_DICT = {
@@ -72,11 +71,15 @@ def _euclidean_distance_matrix(model, selector='all'):
             reference.append(residue[select_atom].get_full_id()[2:4])
     #Convert to a np array, and compute Euclidean distance.
     coord_array = np.array(coords)
-    euclid_mat = distance.pdist(coord_array, 'euclidean')
-    #Convert to squareform matrix
-    euclid_mat = distance.squareform(euclid_mat)
+    euclid_mat = _pairwise_euclidean_distance(coord_array)
     ref_array = reference
     return euclid_mat, ref_array
+
+def _pairwise_euclidean_distance(coord_array):
+    '''Compute the pairwise euclidean distance matrix for a numpy array'''
+    euclid_mat = np.sqrt(((coord_array[:, :, None] -
+                           coord_array[:, :, None].T) ** 2).sum(1))
+    return euclid_mat
 
 
 def nearby(model, radius=15, selector='all'):

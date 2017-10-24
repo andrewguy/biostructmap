@@ -46,8 +46,7 @@ setup(
     setup_requires=['numpy'],
     install_requires=['Biopython>=1.66',
                       'DendroPy>=4.0.3',
-                      'numpy',
-                      'scipy'
+                      'numpy'
                      ],
     cmdclass={'test': PyTest},
     author_email='andrewjguy42@gmail.com',

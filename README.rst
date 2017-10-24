@@ -137,7 +137,7 @@ Prerequisites
 -------------
 
 Installing the biostructmap package requires both an install of the main
-package, as well as install of a few external binaries (NCBI BLAST+,
+package, as well as optional install of a few external binaries (NCBI BLAST+,
 Exonerate and DSSP).
 
 BLAST+:
@@ -146,6 +146,17 @@ BLAST+:
 To install the BLAST+ package, visit the `NCBI BLAST+
 site <https://blast.ncbi.nlm.nih.gov/>`__ and follow the links to
 download and install a local copy of the BLAST+ application.
+
+BLAST+ is not required, but is recommended. If BLAST+ is not installed,
+a fallback pairwise alignment is performed using BioPython.pairwise2, and
+the user should indicate that BLAST+ is not installed by including:
+
+::
+
+    import biostructmap
+
+    biostructmap.seqtools.LOCAL_BLAST = False
+
 
 DSSP:
 ^^^^^
@@ -173,6 +184,10 @@ local package manager. For example, on Ubuntu:
 If this fails you will have to install DSSP from the source code
 provided `here <http://swift.cmbi.ru.nl/gv/dssp/>`__.
 
+DSPP is not strictly required, but any analysis that involves calculation
+of secondary structure or solvent accessibility will raise an exception
+if DSSP is not installed.
+
 Exonerate:
 ^^^^^^^^^^
 
@@ -191,6 +206,16 @@ Tajima's D over a protein structure using a multiple sequence alignment
 - it is used to align a genomic sequence to a protein coding region. If
 this functionality is not required, then biostructmap can be installed
 and run without Exonerate, although some of the tests will fail.
+
+If Exonerate is not installed, a fallback pairwise alignment is performed
+using BioPython.pairwise2, and the user should indicate that Exonerate is not
+installed by including:
+
+::
+
+    import biostructmap
+
+    biostructmap.seqtools.LOCAL_EXONERATE = False
 
 Numpy:
 ^^^^^^^^^^^^^

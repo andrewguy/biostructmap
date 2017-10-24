@@ -55,6 +55,13 @@ from .map_functions import (_tajimas_d, _default_mapping, _snp_mapping,
                             _nucleotide_diversity, _wattersons_theta)
 from .seqtools import (align_protein_to_dna, _construct_sub_align, align_protein_sequences)
 
+mapping_methods = {"default":_default_mapping,
+                   "tajimasd":_tajimas_d,
+                   "snps": _snp_mapping,
+                   "aa_scale": _map_amino_acid_scale,
+                   "count_residues": _count_residues,
+                   "nucleotide_diversity": _nucleotide_diversity,
+                   "wattersons_theta": _wattersons_theta}
 
 @contextlib.contextmanager
 def open_if_string(path_or_file, mode):
@@ -199,6 +206,7 @@ class DataMap(dict):
         Returns:
             None
         '''
+        raise NotImplementedError("write_to_residue method not implemented at this stage.")
         if ref is None:
             with open_if_string(fileobj, 'w') as f:
                 for res in sorted(self):
@@ -275,7 +283,6 @@ class Structure(object):
                        model in self.structure}
         self.pdbname = pdbname
         self._nearby = {}
-
 
     def __iter__(self):
         '''Iterate over all models within structure'''
@@ -417,16 +424,8 @@ class Structure(object):
         #residue in the sequence is numbering '1', and incrementing from there.
         #iii) Residue numbering according to a reference sequence provided, or
         #according to a dna sequence (which could include introns).
-        methods = {"default":_default_mapping,
-                   "tajimasd":_tajimas_d,
-                   "snps": _snp_mapping,
-                   "aa_scale": _map_amino_acid_scale,
-                   "count_residues": _count_residues,
-                   "nucleotide_diversity": _nucleotide_diversity,
-                   "wattersons_theta": _wattersons_theta}
-
-        if method in methods:
-            method = methods[method]
+        if method in mapping_methods:
+            method = mapping_methods[method]
 
         if method_params is None:
             method_params = {}
@@ -537,30 +536,9 @@ class Model(object):
         self._id = model.get_id()
         self.model = model
         self._parent = structure
-        #DSSP only works on the first model in the PDB file
-        if isinstance(structure.pdb_file(), str) and self._id == 0:
-            try:
-                self.dssp = DSSP(self.model, structure.pdb_file())
-            except OSError:
-                self.dssp = DSSP(self.model, structure.pdb_file(),
-                                 dssp="mkdssp")
-        elif self._id == 0:
-            if structure._mmcif:
-                suffix = '.cif'
-            else:
-                suffix = '.pdb'
-            with NamedTemporaryFile(mode='w', suffix=suffix) as temp_pdb_file:
-                temp_pdb_file.write(structure.pdb_file().read())
-                temp_pdb_file.flush()
-                try:
-                    self.dssp = DSSP(self.model, temp_pdb_file.name)
-                except OSError:
-                    self.dssp = DSSP(self.model, temp_pdb_file.name,
-                                     dssp="mkdssp")
-        else:
-            self.dssp = {}
         self.chains = {chain.get_id():Chain(self, chain) for
                        chain in self.model}
+        self._dssp = None # May not need this, so don't compute unless needed.
 
     def __iter__(self):
         '''Iterate over all chains in model'''
@@ -570,6 +548,34 @@ class Model(object):
     def __getitem__(self, key):
         '''Get selected chain'''
         return self.chains[key]
+
+    def dssp(self):
+        '''Get DSSP object'''
+        if self._dssp is not None:
+            return self._dssp
+        #DSSP only works on the first model in the PDB file
+        if isinstance(self._parent.pdb_file(), str) and self._id == 0:
+            try:
+                self._dssp = DSSP(self.model, self._parent.pdb_file())
+            except OSError:
+                self._dssp = DSSP(self.model, self._parent.pdb_file(),
+                                  dssp="mkdssp")
+        elif self._id == 0:
+            if self._parent._mmcif:
+                suffix = '.cif'
+            else:
+                suffix = '.pdb'
+            with NamedTemporaryFile(mode='w', suffix=suffix) as temp_pdb_file:
+                temp_pdb_file.write(self._parent.pdb_file().read())
+                temp_pdb_file.flush()
+                try:
+                    self._dssp = DSSP(self.model, temp_pdb_file.name)
+                except OSError:
+                    self._dssp = DSSP(self.model, temp_pdb_file.name,
+                                      dssp="mkdssp")
+        else:
+            self._dssp = {}
+        return self._dssp
 
     def parent(self):
         '''Get parent Structure object'''
@@ -643,9 +649,9 @@ class Chain(object):
             rsa = {}
             for residue in self.chain:
                 key = (self.get_id(), residue.get_id())
-                if key in self.dssp:
+                if key in self.dssp():
                     try:
-                        rsa[key[1]] = float(self.dssp[key][3])
+                        rsa[key[1]] = float(self.dssp()[key][3])
                     except ValueError:
                         rsa[key[1]] = None
             self._rsa = rsa
@@ -695,39 +701,12 @@ class Chain(object):
             dict: A dictionary with secondary structure assignment (value)
                 for each residue (key) within the chain.
         '''
-        keys = [x for x in self.dssp.keys() if x[0] == self._id]
-        ss_dict = {x[1]: self.dssp.property_dict[x][2] for x in keys}
+        keys = [x for x in self.dssp().keys() if x[0] == self._id]
+        ss_dict = {x[1]: self.dssp().property_dict[x][2] for x in keys}
         if numeric_ss_code:
             return {key:SS_LOOKUP_DICT[item] for key, item in ss_dict.items()}
         else:
             return ss_dict
-
-    def write_to_atom(self, data, output, sep=','): #TODO move to DataMap object
-        '''Write score for each atom in a structure to a file, based on
-        a data dictionary mapping output score to residue number.
-
-        Each line of the output file contains an entry for a single atom.
-
-        Args:
-            data (dict): A dictionary of output score for each residue. Can also
-                be biostructmap.DataMap object, which extends the dict class.
-            output (str): Output file name/path.
-            sep (str, optional): Seperator between residue and data.
-                Defaults to `,`.
-        Returns:
-            None
-        '''
-        #For each atom in the structure, write an output score based on the data
-        #given, presuming (key,value) in a dictionary with key corresponding to
-        #a residue number.
-        with open(output, 'w') as f:
-            for res in data:
-                residue = self.chain[int(res)]
-                for atom in residue:
-                    data_pt = [str(x) for x in [atom.serial_number, data[res]]]
-                    line = sep.join(data_pt) + '\n'
-                    f.write(line)
-        return None
 
     def residue_to_atom_map(self):
         '''Return a map of residue number (per numbering in PDB file) to atom
@@ -744,54 +723,6 @@ class Chain(object):
         else:
             raise TypeError("Can't map to atom serial with mmcif file!")
         return mapping
-
-    def write_to_residue(self, data, output, sep=',', ref=None):
-        '''Write score for each residue in a structure to a file, based on
-        a data dictionary mapping output score to residue number.
-
-        Each line of the output file contains an entry for a single residue.
-        This method additionally allows for scores to be aligned to a reference
-        sequence for easy comparison with other metrics or a conventional
-        reference sequence.
-
-        Args:
-            data (dict): A dictionary of output score for each residue. Can also
-                be biostructmap.DataMap object, which extends the dict class.
-            output (str): Output file name/path.
-            sep (str, optional): Seperator between residue and data.
-                Defaults to `,`.
-            ref (str, optional): A reference sequence with which to align
-                data to.
-        Returns:
-            None
-        '''
-        if ref is None:
-            with open(output, 'w') as f:
-                for res in data:
-                    data_pt = [str(x) for x in [res, data[res]]]
-                    line = sep.join(data_pt) + '\n'
-                    f.write(line)
-        else:
-            seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self, self.sequence)
-            pdbindex_to_ref, _ = align_protein_sequences(self.sequence, ref)
-
-            pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x
-                             in pdbindex_to_ref if x in seq_index_to_pdb_numb}
-            with open(output, 'w') as f:
-                for res in data:
-                    if res not in pdbnum_to_ref:
-                        output = ("Residue {res} in PDB file {pdb} was not"
-                                  " matched to reference sequence provided"
-                                  " for writing to output file").format(
-                                      res=res,
-                                      pdb=self.parent().parent().pdbname)
-
-                        print(output)
-                        continue
-                    data_pt = [str(x) for x in [pdbnum_to_ref[res], data[res]]]
-                    line = sep.join(data_pt) + '\n'
-                    f.write(line)
-        return None
 
     def _filter_rsa(self, residues, rsa_range):
         '''

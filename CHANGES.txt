@@ -1,3 +1,6 @@
+v0.2.3, 2017-10-26 -- Add scipy distance calculation back in as an option if scipy present.
+ * Added scipy distance calculation back. Numpy implementation was a memory hog, so will use scipy if present.
+
 v0.2.2, 2017-10-24 -- Remove Scipy dependency and refactor calls to DSSP
  * Removed SciPy dependency, which simplifies install process.
  * DSSP is only called if it is required, for example when there is a need to calculate secondary structure or solvent accessibility.

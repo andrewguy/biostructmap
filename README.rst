@@ -9,6 +9,8 @@ spatial-proximity into sliding-window calculations, and can be used to
 incorporate protein structure information into genetic tests of
 selection pressure.
 
+A web-based interface is available `here <https://biostructmap.herokuapp.com>`__
+
 Table of Contents
 =================
 

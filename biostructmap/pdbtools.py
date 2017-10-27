@@ -113,6 +113,7 @@ def nearby(model, radius=15, selector='all'):
     ref_dict = {}
     euclidean_distance, ref = _euclidean_distance_matrix(model, selector)
     within_radius = euclidean_distance <= radius
+    del euclidean_distance
     # 1-indexed as 0 means not within range.
     near_map = within_radius * np.arange(1, len(ref)+1)
     #Iterate over all atoms in Euclidean distance matrix.
@@ -123,6 +124,7 @@ def nearby(model, radius=15, selector='all'):
             ref_dict[atom[i]] = np.append(ref_dict[atom[i]],
                                           atom[np.nonzero(atom)])
     _ref_dict = {}
+    del near_map
     # Go from numerical index to residue id
     for key, value in ref_dict.items():
         _ref_dict[ref[key-1]] = {ref[x-1] for x in value} | _ref_dict.get(ref[key-1], set())

@@ -106,7 +106,7 @@ window often applied over a protein sequence.
     # Reference seq might be the first sequence in the multiple sequence alignment
     reference_seq = {'A': str(msa_data[0].seq)}
 
-    results = structure.map(data=msa_data, method='tajimasd', ref=reference_seq,
+    results = structure.map(data=data, method='tajimasd', ref=reference_seq,
                         radius=15, map_to_dna=True)
 
     results.write_data_to_pdb_b_factor(fileobj='test_pdb_data_write.pdb')

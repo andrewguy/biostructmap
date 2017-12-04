@@ -130,6 +130,10 @@ class DataMap(dict):
                 object. If not provided, this defaults to a string
                 describing the data being written, in the form of
                 "pdbid_param1-value1_param2-value2.pdb".
+            scale_factor (int/float): A factor by which to scale (multiply) all
+                data values before writing to B-factor column. This is needed
+                when dealing with values that are too small to be represented
+                in the PDB file B-factor column.
 
         Returns:
             None

@@ -1,3 +1,6 @@
+v0.2.4, 2017-12-14 -- Added calculation of Shannon entropy
+ * Added ability to calculate Shannon entropy for each position in a structure using a multiple sequence alignment.
+
 v0.2.3, 2017-10-26 -- Add scipy distance calculation back in as an option if scipy present.
  * Added scipy distance calculation back. Numpy implementation was a memory hog, so will use scipy if present.
 

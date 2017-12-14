@@ -87,7 +87,7 @@ def _wattersons_theta(_structure, alignments, residues, ref):
 
 
 def _shannon_entropy(_structure, alignments, residues, ref, table='Standard',
-                     protein_letters=IUPACData.protein_letters):
+                     protein_letters=IUPACData.protein_letters, gap='-'):
     '''Calculate Shannon entropy values for residues within a PDB chain.
 
     This should ideally be performed with radius = 0, so that the Shannon
@@ -107,18 +107,20 @@ def _shannon_entropy(_structure, alignments, residues, ref, table='Standard',
             amino acids. If another alphabet is used (if your sequence contains
             non-standard amino acid), then the maximum Shannon entropy values
             will change accordingly.
+        gap (str): Character to denote a gap in the sequence alignment. Used
+            when translating from DNA to protein sequence.
     Returns:
         float: Shannon entropy, value between 0 (perfectly conserved) and
             4.322 (all residues are found at equal proportions at that position)
     '''
     entropy = _genetic_test_wrapper(_structure, alignments, residues, ref,
                                     gentests.shannon_entropy, table=table,
-                                    protein_letters=protein_letters)
+                                    protein_letters=protein_letters, gap=gap)
     return entropy
 
 def _normalized_shannon_entropy(_structure, alignments, residues, ref,
                                 table='Standard',
-                                protein_letters=IUPACData.protein_letters):
+                                protein_letters=IUPACData.protein_letters, gap='-'):
     '''Calculate normalized Shannon entropy values for residues within a PDB chain.
 
     This should ideally be performed with radius = 0, so that the normalized
@@ -140,6 +142,8 @@ def _normalized_shannon_entropy(_structure, alignments, residues, ref,
             amino acids. If another alphabet is used (if your sequence contains
             non-standard amino acid), then the maximum Shannon entropy values
             will change accordingly.
+        gap (str): Character to denote a gap in the sequence alignment. Used
+            when translating from DNA to protein sequence.
     Returns:
         float: Normalized Shannon entropy, value between 0 (perfectly conserved)
            and 1 (all residues are found at equal proportions at that position)
@@ -147,7 +151,7 @@ def _normalized_shannon_entropy(_structure, alignments, residues, ref,
     entropy = _genetic_test_wrapper(_structure, alignments, residues, ref,
                                     gentests.shannon_entropy, table=table,
                                     protein_letters=protein_letters,
-                                    normalized=True)
+                                    normalized=True, gap=gap)
     return entropy
 
 

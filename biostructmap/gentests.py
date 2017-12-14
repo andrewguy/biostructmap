@@ -16,7 +16,7 @@ from .seqtools import _sliding_window_var_sites
 
 def shannon_entropy(alignment, table='Standard',
                     protein_letters=IUPACData.protein_letters,
-                    normalized=False):
+                    normalized=False, gap='-'):
     '''
     Calculate mean Shannon entropy for all residues in a genomic alignment.
 
@@ -38,7 +38,7 @@ def shannon_entropy(alignment, table='Standard',
         alignment = AlignIO.read(StringIO(alignment), format='fasta')
     if not alignment or len(alignment[0]) == 0:
         return None
-    translated_positions = list(zip(*[str(x.seq.translate(table=table)) for
+    translated_positions = list(zip(*[str(x.seq.translate(table=table, gap=gap)) for
                                       x in alignment]))
     not_in_alphabet = set([res for x in translated_positions
                            for res in x]).difference(protein_letters)

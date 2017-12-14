@@ -52,7 +52,8 @@ from . import pdbtools, gentests
 from .pdbtools import match_pdb_residue_num_to_seq, SS_LOOKUP_DICT, mmcif_sequence_to_res_id
 from .map_functions import (_tajimas_d, _default_mapping, _snp_mapping,
                             _map_amino_acid_scale, _count_residues,
-                            _nucleotide_diversity, _wattersons_theta)
+                            _nucleotide_diversity, _wattersons_theta,
+                            _shannon_entropy, _normalized_shannon_entropy)
 from .seqtools import (align_protein_to_dna, _construct_sub_align, align_protein_sequences)
 
 mapping_methods = {"default":_default_mapping,
@@ -61,7 +62,9 @@ mapping_methods = {"default":_default_mapping,
                    "aa_scale": _map_amino_acid_scale,
                    "count_residues": _count_residues,
                    "nucleotide_diversity": _nucleotide_diversity,
-                   "wattersons_theta": _wattersons_theta}
+                   "wattersons_theta": _wattersons_theta,
+                   "shannon_entropy": _shannon_entropy,
+                   "normalized_shannon_entropy": _normalized_shannon_entropy}
 
 @contextlib.contextmanager
 def open_if_string(path_or_file, mode):

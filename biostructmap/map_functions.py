@@ -29,13 +29,13 @@ parameter convention.
 from __future__ import absolute_import, division
 
 from Bio.SeqUtils import ProtParamData
-from Bio.Data.IUPACData import protein_letters_3to1
+from Bio.Data import IUPACData
 import numpy as np
 from .seqtools import _construct_sub_align_from_chains
 from . import gentests
 
 IUPAC_3TO1_UPPER = {key.upper(): value for key, value in
-                    protein_letters_3to1.items()}
+                    IUPACData.protein_letters_3to1.items()}
 
 
 def _count_residues(_structure, _data, residues, _ref):
@@ -84,6 +84,72 @@ def _wattersons_theta(_structure, alignments, residues, ref):
     theta = _genetic_test_wrapper(_structure, alignments, residues, ref,
                                   gentests.wattersons_theta)
     return theta
+
+
+def _shannon_entropy(_structure, alignments, residues, ref, table='Standard',
+                     protein_letters=IUPACData.protein_letters):
+    '''Calculate Shannon entropy values for residues within a PDB chain.
+
+    This should ideally be performed with radius = 0, so that the Shannon
+    entropy of a single position is calculated. Otherwise, this method
+    returns the mean Shannon entropy for all residues within the radius.
+
+    Args:
+        alignments (dict): A dictionary of multiple sequence alignments
+            for each unique chain in the protein structure. Dictionary keys
+            should be chain IDs.
+        ref: A dictionary mapping PDB residue number to codon positions
+            relative to the supplied multiple sequence alignment.
+        table: A codon lookup table used by the Bio.Seq.translate() method.
+            See BioPython docs for possible options.
+        protein_letters (str, optional): String of all protein letters being
+            used to define the amino acid alphabet. Defaults to standard 20
+            amino acids. If another alphabet is used (if your sequence contains
+            non-standard amino acid), then the maximum Shannon entropy values
+            will change accordingly.
+    Returns:
+        float: Shannon entropy, value between 0 (perfectly conserved) and
+            4.322 (all residues are found at equal proportions at that position)
+    '''
+    entropy = _genetic_test_wrapper(_structure, alignments, residues, ref,
+                                    gentests.shannon_entropy, table=table,
+                                    protein_letters=protein_letters)
+    return entropy
+
+def _normalized_shannon_entropy(_structure, alignments, residues, ref,
+                                table='Standard',
+                                protein_letters=IUPACData.protein_letters):
+    '''Calculate normalized Shannon entropy values for residues within a PDB chain.
+
+    This should ideally be performed with radius = 0, so that the normalized
+    Shannon entropy of a single position is calculated. Otherwise, this method
+    returns the mean Shannon entropy for all residues within the radius.
+    The normalized Shannon entropy is the same as the Shannon entropy divided
+    by the maximum possible entropy, and hence falls within the range [0, 1].
+
+    Args:
+        alignments (dict): A dictionary of multiple sequence alignments
+            for each unique chain in the protein structure. Dictionary keys
+            should be chain IDs.
+        ref: A dictionary mapping PDB residue number to codon positions
+            relative to the supplied multiple sequence alignment.
+        table: A codon lookup table used by the Bio.Seq.translate() method.
+            See BioPython docs for possible options.
+        protein_letters (str, optional): String of all protein letters being
+            used to define the amino acid alphabet. Defaults to standard 20
+            amino acids. If another alphabet is used (if your sequence contains
+            non-standard amino acid), then the maximum Shannon entropy values
+            will change accordingly.
+    Returns:
+        float: Normalized Shannon entropy, value between 0 (perfectly conserved)
+           and 1 (all residues are found at equal proportions at that position)
+    '''
+    entropy = _genetic_test_wrapper(_structure, alignments, residues, ref,
+                                    gentests.shannon_entropy, table=table,
+                                    protein_letters=protein_letters,
+                                    normalized=True)
+    return entropy
+
 
 def _nucleotide_diversity(_structure, alignments, residues, ref):
     '''Calculate nucleotide diversity for selected residues within a PDB chain.
@@ -260,7 +326,8 @@ def _map_amino_acid_scale(structure, data, residues, _ref):
     result = np.mean([scale[aa] for aa in aminoacids])
     return result
 
-def _genetic_test_wrapper(_structure, alignments, residues, ref, genetic_test):
+def _genetic_test_wrapper(_structure, alignments, residues, ref, genetic_test,
+                          **kwargs):
     '''Helper function to generate a multiple sequence alignment from selected
     codons and pass to given function.
 
@@ -291,5 +358,5 @@ def _genetic_test_wrapper(_structure, alignments, residues, ref, genetic_test):
     #Get alignment bp from selected codons
     sub_align = _construct_sub_align_from_chains(alignments, codons, fasta=True)
     #Compute Tajima's D using selected codons.
-    score = genetic_test(sub_align)
+    score = genetic_test(sub_align, **kwargs)
     return score

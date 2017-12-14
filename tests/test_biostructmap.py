@@ -401,6 +401,22 @@ class TestGentests(TestCase):
         theta = gentests.wattersons_theta(self.small_alignment)
         self.assertAlmostEqual(theta, 1/1.5)
 
+    def test_shannon_entropy(self):
+        entropy = gentests.shannon_entropy(self.small_alignment[:,0:27])
+        self.assertAlmostEqual(entropy, 0.10203287045049884)
+
+    def test_normalized_shannon_entropy(self):
+        entropy = gentests.shannon_entropy(self.small_alignment[:,0:27], normalized=True)
+        self.assertAlmostEqual(entropy, 0.023608183248397613)
+
+    def test_shannon_entropy_basic_calculation(self):
+        entropy = gentests._calculate_shannon_entropy(['A', 'B', 'C', 'D'],
+                                                      protein_letters='ABCD')
+        self.assertAlmostEqual(entropy, 2)
+        entropy = gentests._calculate_shannon_entropy(['A', 'A', 'A', 'A'],
+                                                      protein_letters='ABCD')
+        self.assertAlmostEqual(entropy, 0)
+
 class Testbiostructmap(TestCase):
     def setUp(self):
         self.test_file = './tests/pdb/1as5.pdb'

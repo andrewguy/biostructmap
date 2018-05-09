@@ -44,6 +44,7 @@ from __future__ import absolute_import, division, print_function
 
 import contextlib
 from copy import deepcopy
+import json
 from tempfile import NamedTemporaryFile
 from Bio.PDB import DSSP, PDBIO, PDBParser, FastMMCIFParser
 from Bio import AlignIO
@@ -193,6 +194,27 @@ class DataMap(dict):
                     data_pt = [str(x) for x in [atom.serial_number, self[res]]]
                     line = sep.join(data_pt) + '\n'
                     f.write(line)
+        return
+
+
+    def write_data_to_json(self, fileobj):
+        '''Write data on contents of each 3D window and related output value.
+
+        Data is written in JSON format. Residues are numbered according to
+        PDB file numbering.
+
+        Args:
+            fileobj (str/object): Output file name/path or file-like object.
+        Returns:
+            None
+        '''
+        nearby = self.structure.nearby()
+        data_to_write = []
+        for res in sorted(self):
+            data_to_write.append({'residue': str(res), 'score': self[res],
+                                  'nearby': str(nearby[res])})
+        with open_if_string(fileobj, 'w') as f:
+            json.dump(data_to_write, f, indent=2)
         return
 
     def write_to_residue(self, fileobj, sep=',', ref=None): #TODO write tests & alter to Structure
@@ -351,14 +373,14 @@ class Structure(object):
             dict: A dictionary containing a list of nearby residues for each
                 residue in the structure.
         '''
-        paramater_key = (radius, atom)
+        parameter_key = (radius, atom)
         # Run on first model in structure
         first_model = sorted(self.models)[0]
         #Calculate distance matrix and store it for retrieval in future queries.
-        if paramater_key not in self._nearby:
+        if parameter_key not in self._nearby:
             dist_map = pdbtools.nearby(self.structure[first_model], radius, atom)
-            self._nearby[paramater_key] = dist_map
-        return self._nearby[paramater_key]
+            self._nearby[parameter_key] = dist_map
+        return self._nearby[parameter_key]
 
     def map(self, data, method='default', ref=None, radius=15, selector='all',
             rsa_range=None, map_to_dna=False, method_params=None):

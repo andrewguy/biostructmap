@@ -22,6 +22,7 @@ Table of Contents
 -  `Versioning <#versioning>`__
 -  `Authors <#authors>`__
 -  `License <#license>`__
+-  `Citing <#citing>`__
 -  `Acknowledgments <#acknowledgments>`__
 
 Getting Started
@@ -307,6 +308,17 @@ License
 
 This project is licensed under the MIT License - see the
 `LICENSE.txt <LICENSE.txt>`__ file for details
+
+Citing
+------
+
+If you have used this tool please cite:
+
+-	Guy, A. J., Irani, V., Richards, J. S. & Ramsland, P. A. BioStructMap: A
+Python tool for integration of protein structure and sequence-based features.
+*Bioinformatics* (2018). doi:10.1093/bioinformatics/bty474
+-	Guy, A. J. *et al.* Proteome-wide mapping of immune features onto
+Plasmodium protein three-dimensional structures. *Sci. Rep.* **8**, 4355 (2018).
 
 Acknowledgments
 ---------------

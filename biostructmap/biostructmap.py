@@ -288,7 +288,7 @@ class Structure(object):
         Args:
             pdbfile (str/file-object): A filename string or a file-like object
                 that contains a PDB file.
-            pdbname (str): A descriptive name for the PDB file. This is used
+            pdbname (str, optional): A descriptive name for the PDB file. This is used
                 as part of the default naming options when writing output files.
             mmcif (bool, optional): Set to true if reading a PDBx/mmCIF file,
                 otherwise this defaults to reading a PDB file.

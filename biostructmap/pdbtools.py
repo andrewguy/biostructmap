@@ -226,11 +226,11 @@ def get_mmcif_canonical_seq(mmcif_dict):
         chain_ids = [ids.split(',') for ids in
                      mmcif_dict['_entity_poly.pdbx_strand_id']]
         # Create dictionary of chain id (key) and sequences (value)
-        sequences = dict((x, sublist[1]) for sublist in
+        sequences = dict((x, sublist[1].replace('\n', '')) for sublist in
                          zip(chain_ids, entity_seqs) for x in sublist[0])
     else:
         chain_ids = mmcif_dict['_entity_poly.pdbx_strand_id'].split(',')
-        sequences = {chain_id: entity_seqs for chain_id in chain_ids}
+        sequences = {chain_id: entity_seqs.replace('\n', '') for chain_id in chain_ids}
     return sequences
 
 def get_mmcif_seqs(mmcif_dict):
@@ -252,10 +252,10 @@ def get_mmcif_seqs(mmcif_dict):
         entity_seqs = mmcif_dict['_entity_poly.pdbx_seq_one_letter_code']
     if isinstance(entity_seqs, list):
         # Create dictionary of chain id (key) and sequences (value)
-        sequences = dict((x, sublist[1]) for sublist in
+        sequences = dict((x, sublist[1].replace('\n', '')) for sublist in
                          zip(chain_ids, entity_seqs) for x in sublist[0])
     else:
-        sequences = {chain_ids[0]: entity_seqs}
+        sequences = {chain_ids[0]: entity_seqs.replace('\n', '')}
     return sequences
 
 def get_pdb_seq_from_atom(chain):

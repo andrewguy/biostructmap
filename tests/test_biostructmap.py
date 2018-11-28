@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 import io
 from unittest import TestCase
 import numpy as np
+from math import log
 
 import Bio.PDB
 from Bio import AlignIO
@@ -766,3 +767,46 @@ class TestStructureMapMethod(TestCase):
                                     method_params={'ignore_duplicates':False,
                                                    'output_count': True})
         self.assertEqual(mapped[('A', (' ', 271, ' '))], 10)
+
+
+class TestShannonEntropyOnProteinAlignment(TestCase):
+    def setUp(self):
+        self.test_file = './tests/pdb/1zrl.pdb'
+        self.structure = biostructmap.Structure(self.test_file)
+        self.test_align = './tests/msa/protein_MSA_1zrl.fsa'
+        self.msa = biostructmap.SequenceAlignment(self.test_align)
+        ref_seq = ('MKCNISIYFFASFFVLYFAKARNEYDIKENEKFLDVYKEKFNELDKKKYGNVQKTDKKIFTFIENKLDILNNSKFNKRWK'
+                   'SYGTPDNIDKNMSLINKHNNEEMFNNNYQSFLSTSSLIKQNKYVPINAVRVSRILSFLDSRINNGRNTSSNNEVLSNCRE'
+                   'KRKGMKWDCKKKNDRSNYVCIPDRRIQLCIVNLSIIKTYTKETMKDHFIEASKKESQLLLKKNDNKYNSKFCNDLKNSFL'
+                   'DYGHLAMGNDMDFGGYSTKAENKIQEVFKGAHGEISEHKIKNFRKKWWNEFREKLWEAMLSEHKNNINNCKNIPQEELQI'
+                   'TQWIKEWHGEFLLERDNRSKLPKSKCKNNTLYEACEKECIDPCMKYRDWIIRSKFEWHTLSKEYETQKVPKENAENYLIK'
+                   'ISENKNDAKVSLLLNNCDAEYSKYCDCKHTTTLVKSVLNGNDNTIKEKREHIDLDDFSKFGCDKNSVDTNTKVWECKKPY'
+                   'KLSTKDVCVPPRRQELCLGNIDRIYDKNLLMIKEHILAIAIYESRILKRKYKNKDDKEVCKIINKTFADIRDIIGGTDYW'
+                   'NDLSNRKLVGKINTNSNYVHRNKQNDKLFRDEWWKVIKKDVWNVISWVFKDKTVCKEDDIENIPQFFRWFSEWGDDYCQD'
+                   'KTKMIETLKVECKEKPCEDDNCKRKCNSYKEWISKKKEEYNKQAKQYQEYQKGNNYKMYSEFKSIKPEVYLKKYSEKCSN'
+                   'LNFEDEFKEELHSDYKNKCTMCPEVKDVPISIIRNNEQTS')
+        self.reference_seqs = {'A': ref_seq}
+
+    def test_shannon_entropy_calculation(self):
+        data = {'A': self.msa}
+        results = self.structure.map(data=data, method='shannon_entropy',
+                                     ref=self.reference_seqs, radius=0,
+                                     method_params={'is_protein': True})
+        pos_64_entropy = -(5/7*log(5/7, 2)+ 2/7*log(2/7, 2))
+        pos_195_entropy = -(3/7*log(3/7, 2)+ 2/7*log(2/7, 2)+ 2/7*log(2/7, 2))
+        pos_324_entropy = -(3/7*log(3/7, 2)+ 3/7*log(3/7, 2)+ 1/7*log(1/7, 2))
+        self.assertAlmostEqual(results[('A', (' ', 64, ' '))], pos_64_entropy)
+        self.assertAlmostEqual(results[('A', (' ', 195, ' '))], pos_195_entropy)
+        self.assertAlmostEqual(results[('A', (' ', 324, ' '))], pos_324_entropy)
+
+    def test_shannon_entropy_calculation_normalized(self):
+        data = {'A': self.msa}
+        results = self.structure.map(data=data, method='normalized_shannon_entropy',
+                                     ref=self.reference_seqs, radius=0,
+                                     method_params={'is_protein': True})
+        pos_64_entropy = -(5/7*log(5/7, 2)+ 2/7*log(2/7, 2)) / log(20, 2)
+        pos_195_entropy = -(3/7*log(3/7, 2)+ 2/7*log(2/7, 2)+ 2/7*log(2/7, 2)) / log(20, 2)
+        pos_324_entropy = -(3/7*log(3/7, 2)+ 3/7*log(3/7, 2)+ 1/7*log(1/7, 2)) / log(20, 2)
+        self.assertAlmostEqual(results[('A', (' ', 64, ' '))], pos_64_entropy)
+        self.assertAlmostEqual(results[('A', (' ', 195, ' '))], pos_195_entropy)
+        self.assertAlmostEqual(results[('A', (' ', 324, ' '))], pos_324_entropy)

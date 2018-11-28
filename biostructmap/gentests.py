@@ -33,6 +33,9 @@ def shannon_entropy(alignment, table='Standard',
             non-standard amino acid), then the maximum Shannon entropy values
             will change accordingly.
         normalized (bool): Normalize such the entropy is in the range [0, 1]
+
+    Returns:
+        float: Shannon entropy value.
     '''
     if isinstance(alignment, str):
         alignment = AlignIO.read(StringIO(alignment), format='fasta')

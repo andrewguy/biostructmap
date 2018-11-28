@@ -359,8 +359,53 @@ def _construct_sub_align_from_chains(alignments, codons, fasta=False):
     sub_align_transpose = [''.join(x) for x in _sub_align_transpose]
     if fasta:
         strains = list(chain_strains.values())[0]
-        fasta_out = ''.join('>{}\n{}\n'.format(*t) for t in
-                            zip(strains, sub_align_transpose))
+        if sub_align_transpose:
+            fasta_out = ''.join('>{}\n{}\n'.format(*t) for t in
+                                zip(strains, sub_align_transpose))
+        else:
+            fasta_out = ''.join('>{}\n\n'.format(strain) for strain in strains)
+        return fasta_out
+    return sub_align_transpose
+
+def _construct_protein_sub_align_from_chains(alignments, residues, fasta=False):
+    '''
+    Take a list of biostructmap multiple sequence alignment objects, and
+    return a subset of residues based on an input list in the form
+    [('A', 1), ('B', 4), ...].
+
+    Notes:
+        Residues should be 1-indexed, not 0-indexed.
+
+    Args:
+        alignment (dict): A dictionary of multiple sequence alignment objects
+            accessed by a tuple of chain ids for each alignment.
+        residues (list): a subset of codons in a list of the form [(1,2,3),...]
+        fasta (bool, optional): If True, will return multiple sequence
+            alignment as a string in FASTA format.
+
+    Returns:
+        MulitpleSequenceAlignment: A subset of the initial alignment as a
+            multiple sequence alignment object. If the fasta kwarg is set to
+            True, returns a string instead.
+    '''
+    chain_alignments = {}
+    chain_strains = {}
+    for key, alignment in alignments.items():
+        chain_alignments[key] = alignment.get_alignment_position_dict()
+        chain_strains[key] = alignment.get_isolate_ids()
+    sub_align = []
+    for residue in residues:
+        #List is zero indexed, hence the need to call codon-1
+        sub_align.append(list(chain_alignments[residue[0]][residue[1]-1]))
+    _sub_align_transpose = zip(*sub_align)
+    sub_align_transpose = [''.join(x) for x in _sub_align_transpose]
+    if fasta:
+        strains = list(chain_strains.values())[0]
+        if sub_align_transpose:
+            fasta_out = ''.join('>{}\n{}\n'.format(*t) for t in
+                                zip(strains, sub_align_transpose))
+        else:
+            fasta_out = ''.join('>{}\n\n'.format(strain) for strain in strains)
         return fasta_out
     return sub_align_transpose
 

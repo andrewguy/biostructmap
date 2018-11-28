@@ -31,8 +31,8 @@ from __future__ import absolute_import, division
 from Bio.SeqUtils import ProtParamData
 from Bio.Data import IUPACData
 import numpy as np
-from .seqtools import _construct_sub_align_from_chains
-from . import gentests
+from .seqtools import _construct_sub_align_from_chains, _construct_protein_sub_align_from_chains
+from . import gentests, protein_tests
 
 IUPAC_3TO1_UPPER = {key.upper(): value for key, value in
                     IUPACData.protein_letters_3to1.items()}
@@ -87,7 +87,8 @@ def _wattersons_theta(_structure, alignments, residues, ref):
 
 
 def _shannon_entropy(_structure, alignments, residues, ref, table='Standard',
-                     protein_letters=IUPACData.protein_letters, gap='-'):
+                     protein_letters=IUPACData.protein_letters, gap='-',
+                     is_protein=False):
     '''Calculate Shannon entropy values for residues within a PDB chain.
 
     This should ideally be performed with radius = 0, so that the Shannon
@@ -109,18 +110,26 @@ def _shannon_entropy(_structure, alignments, residues, ref, table='Standard',
             will change accordingly.
         gap (str): Character to denote a gap in the sequence alignment. Used
             when translating from DNA to protein sequence.
+        is_protein (bool): Set to True if input sequence alignment is a protein sequence.
+            Defaults to False, which means the input alignments should be DNA sequences.
     Returns:
         float: Shannon entropy, value between 0 (perfectly conserved) and
             4.322 (all residues are found at equal proportions at that position)
     '''
-    entropy = _genetic_test_wrapper(_structure, alignments, residues, ref,
-                                    gentests.shannon_entropy, table=table,
-                                    protein_letters=protein_letters, gap=gap)
+    if not is_protein:
+        entropy = _genetic_test_wrapper(_structure, alignments, residues, ref,
+                                        gentests.shannon_entropy, table=table,
+                                        protein_letters=protein_letters, gap=gap)
+    else:
+        entropy = _protein_msa_wrapper(_structure, alignments, residues, ref,
+                                       protein_tests.shannon_entropy_protein,
+                                       protein_letters=protein_letters, gap=gap)
     return entropy
 
 def _normalized_shannon_entropy(_structure, alignments, residues, ref,
                                 table='Standard',
-                                protein_letters=IUPACData.protein_letters, gap='-'):
+                                protein_letters=IUPACData.protein_letters, gap='-',
+                                is_protein=False):
     '''Calculate normalized Shannon entropy values for residues within a PDB chain.
 
     This should ideally be performed with radius = 0, so that the normalized
@@ -144,14 +153,22 @@ def _normalized_shannon_entropy(_structure, alignments, residues, ref,
             will change accordingly.
         gap (str): Character to denote a gap in the sequence alignment. Used
             when translating from DNA to protein sequence.
+        is_protein (bool): Set to True if input sequence alignment is a protein sequence.
+            Defaults to False, which means the input alignments should be DNA sequences.
     Returns:
         float: Normalized Shannon entropy, value between 0 (perfectly conserved)
            and 1 (all residues are found at equal proportions at that position)
     '''
-    entropy = _genetic_test_wrapper(_structure, alignments, residues, ref,
-                                    gentests.shannon_entropy, table=table,
-                                    protein_letters=protein_letters,
-                                    normalized=True, gap=gap)
+    if not is_protein:
+        entropy = _genetic_test_wrapper(_structure, alignments, residues, ref,
+                                        gentests.shannon_entropy, table=table,
+                                        protein_letters=protein_letters, gap=gap,
+                                        normalized=True)
+    else:
+        entropy = _protein_msa_wrapper(_structure, alignments, residues, ref,
+                                       protein_tests.shannon_entropy_protein,
+                                       protein_letters=protein_letters, gap=gap,
+                                       normalized=True)
     return entropy
 
 
@@ -363,4 +380,38 @@ def _genetic_test_wrapper(_structure, alignments, residues, ref, genetic_test,
     sub_align = _construct_sub_align_from_chains(alignments, codons, fasta=True)
     #Compute Tajima's D using selected codons.
     score = genetic_test(sub_align, **kwargs)
+    return score
+
+def _protein_msa_wrapper(_structure, alignments, residues, ref, msa_function,
+                          **kwargs):
+    '''Helper function to generate a multiple sequence alignment from selected
+    residues and pass to given function.
+
+    Input is Chain object, multiple sequence alignment object,
+    list of surrounding residues, a dictionary giving mapping
+    of PDB residue number to MSA residue positions, and function to pass subset of
+    sequence alignment to. Used for calculations such as Shannon Entropy.
+
+    Args:
+        alignments (dict): A dictionary of multiple sequence alignments
+            for each unique chain in the protein structure. Dictionary keys
+            should be chain IDs.
+        ref: A dictionary mapping PDB residue number to protein residue number
+            relative to the supplied multiple sequence alignment.
+        msa_function: A function that takes a multiple sequence alignment as
+            input and returns a numeric value.
+    Returns:
+        float: Returned value from `genetic_test` function.
+    '''
+    chains = alignments.keys()
+    #filter list of residues based on those that have mapped codons:
+    ref_residues = [ref[x] for x in residues if x in ref]  # Returns [('A', (15,16,17)), ...]
+    # Remove duplicate items (i.e. same data point, different chains) from
+    # list of residues and set chain identifier to match alignment keys.
+    residues = set([(chain, x[1]) for chain in chains
+                  for x in ref_residues if x[0] in chain])
+    #Get alignment bp from selected codons
+    sub_align = _construct_protein_sub_align_from_chains(alignments, residues, fasta=True)
+    #Compute something using selected alignment.
+    score = msa_function(sub_align, **kwargs)
     return score

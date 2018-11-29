@@ -7,5 +7,5 @@ such as Tajima's D.
 
 from .biostructmap import Structure, SequenceAlignment
 
-__version__ = '0.2.4'
+__version__ = '0.3.0'
 __all__ = ["biostructmap", "seqtools", "pdbtools", "gentests", "map_functions", "protein_tests"]

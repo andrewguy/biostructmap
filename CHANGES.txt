@@ -1,3 +1,7 @@
+v0.3.0, 2018-11-29 -- Improved Memory Management. Added tools for protein sequence alignments.
+ * Add ability to use protein multiple sequence alignments as input data. Useful for Shannon Entropy calculation.
+ * Improve memory management when calculating nearby residues. No longer creates a Euclidean distance matrix, but uses a KDTree instead.
+
 v0.2.4, 2017-12-14 -- Added calculation of Shannon entropy
  * Added ability to calculate Shannon entropy for each position in a structure using a multiple sequence alignment.
 

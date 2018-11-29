@@ -238,6 +238,14 @@ or
 
     pip install numpy
 
+SciPy:
+^^^^^^^^^^^^^^
+
+While there is no hard dependency on SciPy, calculation of nearby residues
+can be very memory intensive without SciPy present. If you are getting a MemoryError
+exception with large PDB files, then consider installing SciPy in your python environment.
+
+
 Installing
 ----------
 
@@ -317,7 +325,7 @@ If you have used this tool please cite:
 -  Guy, A. J., Irani, V., Richards, J. S. & Ramsland, P. A. BioStructMap: A
    Python tool for integration of protein structure and sequence-based features.
    *Bioinformatics* (2018). doi:10.1093/bioinformatics/bty474
-   
+
 -  Guy, A. J. *et al.* Proteome-wide mapping of immune features onto
    Plasmodium protein three-dimensional structures. *Sci. Rep.* **8**, 4355 (2018).
 

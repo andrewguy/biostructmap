@@ -4,6 +4,7 @@ Helper module for the biostructmap package.
 """
 from __future__ import absolute_import, division, print_function
 
+from collections import defaultdict
 from Bio.SeqIO import PdbIO
 from Bio.SeqUtils import seq1
 from Bio.Data.SCOPData import protein_letters_3to1
@@ -11,7 +12,7 @@ from Bio.PDB.Polypeptide import PPBuilder
 import numpy as np
 from .seqtools import align_protein_sequences
 try:
-    from scipy.spatial import distance
+    from scipy.spatial import distance, cKDTree
     SCIPY_PRESENT = True
 except ImportError:
     SCIPY_PRESENT = False
@@ -91,6 +92,53 @@ def _pairwise_euclidean_distance(coord_array):
                                coord_array[:, :, None].T) ** 2).sum(1))
     return euclid_mat
 
+def _get_nearby_matrix(model, selector, radius):
+    """Get a matrix of all nearby atoms in a pdb model.
+
+    Args:
+        model (Model): Bio.PDB Model object.
+        selector (str): The atom in each residue with which to compute
+            distances. The default setting is 'all', which gets all
+            non-heterologous atoms. Other potential options include 'CA', 'CB'
+            etc. If an atom is not found within a residue object, then method
+            reverts to using 'CA'.
+        radius (float): The radius within which to extract nearby residues/atoms.
+    Returns:
+        list: A nearby matrix (list of lists).
+        np.array: A reference list of all atoms in the model (positionally
+            matched to the nearby matrix).
+    """
+    reference = []
+    coords = []
+    # Get all non-HET residues from all chains
+    residues = [res for chain in model for res in chain if
+                res.get_id()[0] == ' ']
+    #Filter on non-HET atoms
+    for residue in residues:
+        #If selecting based on all atoms within residue
+        if selector == 'all':
+            for atom in residue:
+                coords.append(atom.get_coord())
+                reference.append(atom.get_full_id()[2:4])
+        #If measuring distance on particular atoms
+        else:
+            if selector in residue:
+                select_atom = selector
+            #Revert to carbon alpha if atom is not found
+            elif 'CA' in residue:
+                select_atom = 'CA'
+            #if CA is not found, do not include residue in distance matrix
+            else:
+                continue
+            coords.append(residue[select_atom].get_coord())
+            reference.append(residue[select_atom].get_full_id()[2:4])
+    #Convert to a np array, and use a KDTree to identify points within a certain distance.
+    coord_array = np.array(coords)
+    point_tree = cKDTree(coord_array)
+    ball_tree = point_tree.query_ball_tree(point_tree, radius)
+    ref_array = reference
+    return ball_tree, ref_array
+
 def nearby(model, radius=15, selector='all'):
     """
     Takes a Bio.PDB model object, and find all residues within a radius of a
@@ -109,25 +157,32 @@ def nearby(model, radius=15, selector='all'):
         dict: A dictionary containing nearby residues for each
             residue in the chain.
     """
-    #Setup variables
+    #TODO: Cleanup case when scipy not present. Could just enforce scipy usage.
     ref_dict = {}
-    euclidean_distance, ref = _euclidean_distance_matrix(model, selector)
-    within_radius = euclidean_distance <= radius
-    del euclidean_distance
-    # 1-indexed as 0 means not within range.
-    near_map = within_radius * np.arange(1, len(ref)+1)
-    #Iterate over all atoms in Euclidean distance matrix.
-    for i, atom in enumerate(near_map):
-        if atom[i] not in ref_dict:
-            ref_dict[atom[i]] = atom[np.nonzero(atom)]
-        else:
-            ref_dict[atom[i]] = np.append(ref_dict[atom[i]],
-                                          atom[np.nonzero(atom)])
-    _ref_dict = {}
-    del near_map
-    # Go from numerical index to residue id
-    for key, value in ref_dict.items():
-        _ref_dict[ref[key-1]] = {ref[x-1] for x in value} | _ref_dict.get(ref[key-1], set())
+    #if SCIPY_PRESENT:
+    if SCIPY_PRESENT:
+        near_map, ref = _get_nearby_matrix(model, selector, radius)
+        _ref_dict = defaultdict(set)
+        for i, x in enumerate(near_map):
+            _ref_dict[ref[i]].update({ref[y] for y in x})
+    else:
+        euclidean_distance, ref = _euclidean_distance_matrix(model, selector)
+        within_radius = euclidean_distance <= radius
+        del euclidean_distance
+        # 1-indexed as 0 means not within range.
+        near_map = within_radius * np.arange(1, len(ref)+1)
+        #Iterate over all atoms in Euclidean distance matrix.
+        for i, atom in enumerate(near_map):
+            if atom[i] not in ref_dict:
+                ref_dict[atom[i]] = atom[np.nonzero(atom)]
+            else:
+                ref_dict[atom[i]] = np.append(ref_dict[atom[i]],
+                                              atom[np.nonzero(atom)])
+        _ref_dict = {}
+        del near_map
+        # Go from numerical index to residue id
+        for key, value in ref_dict.items():
+            _ref_dict[ref[key-1]] = {ref[x-1] for x in value} | _ref_dict.get(ref[key-1], set())
     return _ref_dict
 
 

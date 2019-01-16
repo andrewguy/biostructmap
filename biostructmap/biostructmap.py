@@ -45,6 +45,7 @@ from __future__ import absolute_import, division, print_function
 import contextlib
 from copy import deepcopy
 import json
+import itertools
 from tempfile import NamedTemporaryFile
 from Bio.PDB import DSSP, PDBIO, PDBParser, FastMMCIFParser
 from Bio import AlignIO
@@ -148,6 +149,7 @@ class DataMap(dict):
         # This may fail in earlier versions of Biopython if the structure
         # contains disordered residues - An appropriate fix for deepcopying
         # disordered residues has been added to Biopython (>v1.70?).
+        serial_number_generator = itertools.count(start=1)
         _structure = deepcopy(self.structure)
         first_model = sorted(_structure.models)[0]
         #Set all B-factor fields to zeros/default value
@@ -157,6 +159,12 @@ class DataMap(dict):
                 if _data is None:
                     _data = default_no_value
                 for atom in residue:
+                    # Currently mmcif files don't get assigned an atom serial number
+                    # by Bio.PDB, which breaks trying to write to a PDB file.
+                    # Simple fix is just to assign a sequential serial number.
+                    # May not line up with _atom_site.id in mmcif file.
+                    if atom.get_serial_number() is None:
+                        atom.set_serial_number(next(serial_number_generator))
                     if atom.is_disordered():
                         for altloc in atom.disordered_get_id_list():
                             atom.disordered_select(altloc)

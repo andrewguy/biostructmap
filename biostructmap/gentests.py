@@ -176,15 +176,34 @@ def nucleotide_diversity(alignment):
         float: Nucleotide diversity value. Returns None if nucleotide
             diversity is undefined.
     """
+    if is_empty_alignment(alignment):
+        return None
     if not isinstance(alignment, str):
         data = alignment.format('fasta')
     else:
         data = alignment
-    if not alignment or len(alignment[0]) == 0:
-        return None
     seq = dendropy.DnaCharacterMatrix.get(data=data, schema='fasta')
     diversity = dendropy.calculate.popgenstat.nucleotide_diversity(seq)
     return diversity
+
+def is_empty_alignment(alignment):
+    """Returns True if alignment is empty.
+
+    Args:
+        alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
+            alignment string in FASTA format or a multiple sequence alignment
+            object, either as a Bio.Align.MultipleSequenceAlignment or a
+            biostructmap.SequenceAlignment object.
+
+    Returns:
+        bool: True if alignment is empty, False otherwise.
+    """
+    if isinstance(alignment, str) and len(alignment.split('\n')[1]) == 0:
+        return True
+    elif not alignment or len(alignment[0]) == 0:
+        return True
+    else:
+        return False
 
 def wattersons_theta(alignment):
     """

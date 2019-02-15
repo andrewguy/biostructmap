@@ -158,6 +158,9 @@ class DataMap(dict):
                 _data = self.get(residue.get_full_id()[2:4], default_no_value)
                 if _data is None:
                     _data = default_no_value
+                    _scale_factor = 1
+                else:
+                    _scale_factor = scale_factor
                 for atom in residue:
                     # Currently mmcif files don't get assigned an atom serial number
                     # by Bio.PDB, which breaks trying to write to a PDB file.
@@ -168,9 +171,9 @@ class DataMap(dict):
                     if atom.is_disordered():
                         for altloc in atom.disordered_get_id_list():
                             atom.disordered_select(altloc)
-                            atom.set_bfactor(float(_data * scale_factor))
+                            atom.set_bfactor(float(_data * _scale_factor))
                     else:
-                        atom.set_bfactor(float(_data * scale_factor))
+                        atom.set_bfactor(float(_data * _scale_factor))
         pdb_io = PDBIO()
         pdb_io.set_structure(_structure.structure)
         # Write structure to PDB file

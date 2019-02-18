@@ -39,7 +39,7 @@ def shannon_entropy(alignment, table='Standard',
     '''
     if isinstance(alignment, str):
         alignment = AlignIO.read(StringIO(alignment), format='fasta')
-    if not alignment or len(alignment[0]) == 0:
+    if is_empty_alignment(alignment):
         return None
     translated_positions = list(zip(*[str(x.seq.translate(table=table, gap=gap)) for
                                       x in alignment]))
@@ -150,7 +150,7 @@ def _tajimas_d(alignment):
         data = alignment.format('fasta')
     else:
         data = alignment
-    if not alignment or len(alignment[0]) == 0:
+    if is_empty_alignment(alignment):
         return None
     try:
         seq = dendropy.DnaCharacterMatrix.get(data=data,
@@ -225,7 +225,7 @@ def wattersons_theta(alignment):
         data = alignment.format('fasta')
     else:
         data = alignment
-    if not alignment or len(alignment[0]) == 0:
+    if is_empty_alignment(alignment):
         return None
     seq = dendropy.DnaCharacterMatrix.get(data=data, schema='fasta')
     theta = dendropy.calculate.popgenstat.wattersons_theta(seq)

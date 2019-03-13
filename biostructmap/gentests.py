@@ -12,7 +12,9 @@ from Bio.Data import IUPACData
 from numpy import mean
 import dendropy
 
-from .seqtools import _sliding_window_var_sites
+from .seqtools import _sliding_window_var_sites, check_for_uncertain_bases
+from .population_stats import calculate_tajimas_d, calculate_nucleotide_diversity
+from .population_stats import calculate_wattersons_theta
 
 def shannon_entropy(alignment, table='Standard',
                     protein_letters=IUPACData.protein_letters,
@@ -130,12 +132,14 @@ def tajimas_d(alignment, window=None, step=3):
     else:
         return _tajimas_d(alignment)
 
-def _tajimas_d(alignment):
+def _tajimas_d_old(alignment):
     """
     Uses DendroPy to calculate tajimas D.
 
     If Tajima's D is undefined (ie. Dendropy Tajima's D method raises a
     ZeroDivisionError), then this method returns None.
+
+    Note: This approach is SLOW for large numbers of sequences.
 
     Args:
         alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
@@ -160,7 +164,72 @@ def _tajimas_d(alignment):
         taj_d = None
     return taj_d
 
+def _tajimas_d(alignment):
+    '''A faster Tajima's D calculation.
+
+    If Tajima's D is undefined (ie. Tajima's D method raises a
+    ZeroDivisionError), then this method returns None.
+
+    Args:
+        alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
+            alignment string in FASTA format or a multiple sequence alignment
+            object, either as a Bio.Align.MultipleSequenceAlignment or a
+            biostructmap.SequenceAlignment object.
+
+    Returns:
+        float: Tajima's D value. Returns None if Tajima's D is undefined.
+    '''
+    if is_empty_alignment(alignment):
+        return None
+    try:
+        seq = [str(x.seq) for x in alignment]
+    except AttributeError:
+        alignment = AlignIO.read(StringIO(alignment), 'fasta')
+        seq = [str(x.seq) for x in alignment]
+    try:
+        if check_for_uncertain_bases(seq):
+            taj_d = _tajimas_d_old(alignment)
+        else:
+            taj_d = calculate_tajimas_d(seq)
+    except ZeroDivisionError:
+        taj_d = None
+    return taj_d
+
+
 def nucleotide_diversity(alignment):
+    """
+    A faster nucleotide diversity calculation (compared to DendroPy).
+
+    If nucleotide diversity is undefined, returns None.
+
+    Args:
+        alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
+            alignment string in FASTA format or a multiple sequence alignment
+            object, either as a Bio.Align.MultipleSequenceAlignment or a
+            biostructmap.SequenceAlignment object.
+
+    Returns:
+        float: Nucleotide diversity value. Returns None if nucleotide
+            diversity is undefined.
+    """
+    if is_empty_alignment(alignment):
+        return None
+    try:
+        seq = [str(x.seq) for x in alignment]
+    except AttributeError:
+        alignment = AlignIO.read(StringIO(alignment), 'fasta')
+        seq = [str(x.seq) for x in alignment]
+    try:
+        if check_for_uncertain_bases(seq):
+            diversity = nucleotide_diversity_old(alignment)
+        else:
+            diversity = calculate_nucleotide_diversity(seq)
+    except ZeroDivisionError:
+        diversity = None
+    return diversity
+
+
+def nucleotide_diversity_old(alignment):
     """
     Use DendroPy to calculate nucleotide diversity.
 
@@ -206,6 +275,39 @@ def is_empty_alignment(alignment):
         return False
 
 def wattersons_theta(alignment):
+    """
+    A faster Watterson's Theta calculation (compared to DendroPy).
+
+    If Watterson's Theta is undefined, returns None.
+
+    Args:
+        alignment (str/Bio.Align.MultipleSequenceAlignment): A multiple sequence
+            alignment string in FASTA format or a multiple sequence alignment
+            object, either as a Bio.Align.MultipleSequenceAlignment or a
+            biostructmap.SequenceAlignment object.
+
+    Returns:
+        float: Watterson's Theta value. Returns None if Watterson's Theta is
+            undefined.
+    """
+    if is_empty_alignment(alignment):
+        return None
+    try:
+        seq = [str(x.seq) for x in alignment]
+    except AttributeError:
+        alignment = AlignIO.read(StringIO(alignment), 'fasta')
+        seq = [str(x.seq) for x in alignment]
+    try:
+        if check_for_uncertain_bases(seq):
+            theta = wattersons_theta_old(alignment)
+        else:
+            theta = calculate_wattersons_theta(seq)
+    except ZeroDivisionError:
+        theta = None
+    return theta
+
+
+def wattersons_theta_old(alignment):
     """
     Use DendroPy to calculate Watterson's Theta.
 

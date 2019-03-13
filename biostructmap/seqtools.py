@@ -8,6 +8,7 @@ import operator
 import re
 import subprocess
 import tempfile
+import warnings
 from Bio import AlignIO
 from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML
@@ -443,6 +444,27 @@ def _construct_sub_align(alignment, codons, fasta=False):
         return fasta_out
     return sub_align_transpose
 
+def check_for_uncertain_bases(alignment):
+    '''
+    Check for uncertain or missing base pairs in a multiple sequence alignment.
+
+    Args:
+        alignment (list): A multiple sequence alignment as a list of sequence
+            strings.
+        Returns:
+            bool: True if alignment contains bases other than A, C, G or T.
+    '''
+    accepted_bases = 'ACGTacgt'
+    for sequence in alignment:
+        for base in sequence:
+            if base not in accepted_bases:
+                warnings.warn("Multiple sequence alignment contains uncertain "\
+                      "or missing bases: using DendroPy implementation of population "\
+                      "statistics, which is slower. Also, DendroPy treatment of uncertain "\
+                      "bases is not guaranteed to be correct, and it suggested the user filter "\
+                      "out uncertain bases before running BioStructMap.")
+                return True
+    return False
 
 def _align_prot_to_dna_exonerate(prot_seq, dna_seq):
     '''

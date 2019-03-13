@@ -11,7 +11,7 @@ from Bio.Seq import Seq
 from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 from biostructmap import biostructmap, seqtools, gentests, pdbtools
 from biostructmap.seqtools import (_sliding_window, _sliding_window_var_sites,
-                                   _construct_sub_align)
+                                   _construct_sub_align, check_for_uncertain_bases)
 from biostructmap.gentests import _tajimas_d
 from biostructmap.pdbtools import _euclidean_distance_matrix
 from biostructmap.map_functions import _tajimas_d
@@ -362,6 +362,14 @@ class TestSeqtools(TestCase):
         result = _construct_sub_align(self.biostructmap_alignment, codons, 'fasta')
         to_match = self.alignment[:, 0:6] + self.alignment[:, 9:12]
         self.assertEqual(to_match.format('fasta'), result)
+
+    def test_check_for_uncertain_bases(self):
+        seqs = ['ACGT', 'CGTc', 'AaCA']
+        uncertain_seqs = ['ACGT', 'C-TC', 'AACA']
+        self.assertFalse(check_for_uncertain_bases(seqs))
+        with self.assertWarns(Warning):
+            self.assertTrue(check_for_uncertain_bases(uncertain_seqs))
+        
 
 class TestGentests(TestCase):
     def setUp(self):

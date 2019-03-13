@@ -1,3 +1,8 @@
+v0.4.0, 2019-03-13 -- Speed up population stats calculations
+ * Add faster implementation of common population stats that previously used DendroPy implementation.
+ * Add warning when uncertain base pairs are used with population stats.
+ * Fix minor bugs with loading/using multiple sequence alignments from raw Fasta format.
+
 v0.3.0, 2018-11-29 -- Improved Memory Management. Added tools for protein sequence alignments.
  * Add ability to use protein multiple sequence alignments as input data. Useful for Shannon Entropy calculation.
  * Improve memory management when calculating nearby residues. No longer creates a Euclidean distance matrix, but uses a KDTree instead.

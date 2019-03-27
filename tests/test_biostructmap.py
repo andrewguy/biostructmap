@@ -9,12 +9,17 @@ import Bio.PDB
 from Bio import AlignIO
 from Bio.Seq import Seq
 from Bio.PDB.MMCIF2Dict import MMCIF2Dict
+from Bio.PDB.PDBExceptions import PDBConstructionWarning
 from biostructmap import biostructmap, seqtools, gentests, pdbtools
 from biostructmap.seqtools import (_sliding_window, _sliding_window_var_sites,
                                    _construct_sub_align, check_for_uncertain_bases)
 from biostructmap.gentests import _tajimas_d
 from biostructmap.pdbtools import _euclidean_distance_matrix
 from biostructmap.map_functions import _tajimas_d
+
+import warnings
+
+warnings.filterwarnings("ignore", category=PDBConstructionWarning)
 
 STANDARD_AA_3_LETTERS = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
                          'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER',
@@ -211,6 +216,7 @@ class TestSeqtools(TestCase):
         slider = _sliding_window_var_sites(self.alignment, length, step)
         varsites_keys_to_match = [28, 46, 67, 93, 95, 98, 100]
         null_align = self.alignment[:, 0:0]
+        print(self.alignment)
         for i, window in enumerate(slider):
             #Check if key within range
             in_range = [x for x in varsites_keys_to_match if (step*i) <= x < (step*i + length)]
@@ -818,3 +824,58 @@ class TestShannonEntropyOnProteinAlignment(TestCase):
         self.assertAlmostEqual(results[('A', (' ', 64, ' '))], pos_64_entropy)
         self.assertAlmostEqual(results[('A', (' ', 195, ' '))], pos_195_entropy)
         self.assertAlmostEqual(results[('A', (' ', 324, ' '))], pos_324_entropy)
+
+
+class TestOutputWriting(TestCase):
+    def setUp(self):
+        self.test_file = './tests/pdb/4nuv.cif'
+        self.test_pdb = './tests/pdb/4nuv.pdb'
+        self.structure = biostructmap.Structure(self.test_file, mmcif=True)
+        self.structure_pdb = biostructmap.Structure(self.test_pdb)
+
+        self.ref_seq = ('ASNTVMKNCNYKRKRRERDWDCNTKKDVCIPDRRYQLCMKELTNLVNNTDT'
+                   'NFHRDITFRKLYLKRKLIYDAAVEGDLLLKLNNYRYNKDFCKDIRWSLGDF'
+                   'GDIIMGTDMEGIGYSKVVENNLRSIFGTDEKAQQRRKQWWNESKAQIWTAM'
+                   'MYSVKKRLKGNFIWICKLNVAVNIEPQIYRWIREWGRDYVSELPTEVQKLK'
+                   'EKCDGKINYTDKKVCKVPPCQNACKSYDQWITRKKNQWDVLSNKFISVKNA'
+                   'EKVQTAGIVTPYDILKQELDEFNEVAFENEINKRDGAYIELCVCSVEEAKK'
+                   'NTQEVVTNVDN')
+        reference_seqs = {'A': self.ref_seq, 'B': self.ref_seq}
+        data = {('A', 'B'): range(500)}
+
+        self.mapped = self.structure.map(data=None, method='count_residues',
+                                    ref=reference_seqs, radius=3)
+        self.mapped_pdb = self.structure_pdb.map(data=None, method='count_residues',
+                                    ref=reference_seqs, radius=3)
+
+    def test_writing_to_file(self):
+        mock_file = io.StringIO()
+        # Output numbering should be shifted by 10.
+        self.mapped.write_residue_data_to_csv(mock_file, ref={'A': self.ref_seq,
+                                                              'B': self.ref_seq})
+        mock_file.seek(0)
+        written_lines = mock_file.readlines()
+        # 271 equates to 63 in original structure.
+        self.assertEquals(written_lines[0], 'chain,reference,score\n')
+        self.assertTrue('A,63,10\n' in written_lines)
+
+    def test_writing_to_file_without_ref(self):
+        mock_file = io.StringIO()
+        # Output numbering should be shifted by 10.
+        self.mapped.write_residue_data_to_csv(mock_file)
+        mock_file.seek(0)
+        written_lines = mock_file.readlines()
+        # 271 equates to 63 in original structure.
+        self.assertEquals(written_lines[0], 'chain,reference,score\n')
+        self.assertTrue('A,63,10\n' in written_lines)
+
+    def test_writing_to_atom(self):
+        mock_file = io.StringIO()
+        # Output numbering should be shifted by 10.
+        self.mapped_pdb.write_to_atom(mock_file)
+        mock_file.seek(0)
+        written_lines = mock_file.readlines()
+        print(written_lines)
+        self.assertEquals(written_lines[0], 'atom_serial,score\n')
+        self.assertTrue('952,10\n' in written_lines)
+        

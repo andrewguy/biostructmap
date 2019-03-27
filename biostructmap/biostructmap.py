@@ -182,7 +182,7 @@ class DataMap(dict):
         pdb_io.save(file=fileobj, preserve_atom_numbering=True)
         return None
 
-    def write_to_atom(self, fileobj, sep=','): #TODO write tests
+    def write_to_atom(self, fileobj, sep=',', model=None):
         '''Write score for each atom in a structure to a file, based on
         a data dictionary mapping output score to residue number.
 
@@ -195,12 +195,21 @@ class DataMap(dict):
         Returns:
             None
         '''
+        is_mmcif = self.structure._mmcif
+        if is_mmcif:
+            raise TypeError("Can't map to atom serial with mmcif file!")
+        if model is None:
+            # Use the first model. Will be the only model unless it's an NMR structure.
+            model_ = self.structure[sorted(self.structure.models)[0]]
+        else:
+            model_ = self.structure[model]
         #For each atom in the structure, write an output score based on the data
         #given, presuming (key,value) in a dictionary with key corresponding to
         #a residue number.
         with open_if_string(fileobj, 'w') as f:
+            f.write(sep.join(('atom_serial', 'score\n')))
             for res in sorted(self):
-                residue = self.structure[res]
+                residue = model_[res[0]][res[1]]
                 for atom in residue:
                     data_pt = [str(x) for x in [atom.serial_number, self[res]]]
                     line = sep.join(data_pt) + '\n'
@@ -228,7 +237,7 @@ class DataMap(dict):
             json.dump(data_to_write, f, indent=2)
         return
 
-    def write_to_residue(self, fileobj, sep=',', ref=None): #TODO write tests & alter to Structure
+    def write_residue_data_to_csv(self, fileobj, sep=',', ref=None):
         '''Write score for each residue in a structure to a file, based on
         a data dictionary mapping output score to residue number.
 
@@ -241,38 +250,31 @@ class DataMap(dict):
             fileobj (str/object): Output file name/path or file-like object.
             sep (str, optional): Seperator between residue and data.
                 Defaults to `,`.
-            ref (str, optional): A reference sequence with which to align
-                data to.
+            ref (dict, optional): A dictionary of reference sequences (as strings),
+                accessed by chain ID.
         Returns:
             None
         '''
-        raise NotImplementedError("write_to_residue method not implemented at this stage.")
         if ref is None:
-            with open_if_string(fileobj, 'w') as f:
-                for res in sorted(self):
-                    data_pt = [str(x) for x in [res, self[res]]]
-                    line = sep.join(data_pt) + '\n'
-                    f.write(line)
-        else:
-            seq_index_to_pdb_numb = match_pdb_residue_num_to_seq(self.chain, self.chain.sequence)
-            pdbindex_to_ref, _ = align_protein_sequences(self.chain.sequence, ref)
+            # Use existing seqs for each chain
+            ref = self.structure.sequences
+        data_to_write = []
 
-            pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdbindex_to_ref[x] for x
-                             in pdbindex_to_ref if x in seq_index_to_pdb_numb}
-            with open_if_string(fileobj, 'w') as f:
-                for res in sorted(self):
-                    if res not in pdbnum_to_ref:
-                        output = ("Residue {res} in PDB file {pdb} was not"
-                                  " matched to reference sequence provided"
-                                  " for writing to output file").format(
-                                      res=res,
-                                      pdb=self.structure.pdbname)
+        # Get data relative to PDB numbering.
+        for res in sorted(self):
+            data_to_write.append((res, self[res]))
 
-                        print(output)
-                        continue
-                    data_pt = [str(x) for x in [pdbnum_to_ref[res], self[res]]]
-                    line = sep.join(data_pt) + '\n'
-                    f.write(line)
+        # Make lookup dict...
+        # Convert PDB Residue code to something like: ('A', 123)
+        pdb_to_seq = self.structure._map_pdb_numbering_to_reference(ref, map_to_dna=False)
+        
+        converted_data = [(*pdb_to_seq[res], score) for res, score in data_to_write if res in pdb_to_seq]
+
+        file_contents = '\n'.join([sep.join(str(y) for y in x) for x in converted_data])
+        header = sep.join(['chain', 'reference', 'score\n'])
+        with open_if_string(fileobj, 'w') as f:
+            f.write(header)
+            f.write(file_contents)
         return
 
     def _parameter_string(self):
@@ -476,11 +478,45 @@ class Structure(object):
         elif ref is None:
             ref = self.sequences
 
-        model = self[sorted(self.models)[0]]
         # Generate a map of nearby residues for each residue in pdb file.
         # Numbering is according to pdb residue numbering from file
         residue_map = self.nearby(radius=radius, atom=selector)
 
+        # Map pdb numbering by file to the reference sequence
+        # (dna or protein) provided, as long as the residues exists within the PDB
+        # structure (ie has coordinates)
+        pdbnum_to_ref = self._map_pdb_numbering_to_reference(ref, map_to_dna)
+       
+        results = {}
+
+        #For each residue within the sequence, apply a function and return result.
+        for residue in residue_map:
+            if rsa_range:
+                residues = self._filter_rsa(residue_map[residue], rsa_range)
+                if residue not in residues:
+                    results[residue] = None
+                    continue
+            else:
+                residues = residue_map[residue]
+            results[residue] = method(self, data, residues, pdbnum_to_ref, **method_params)
+        params = {'radius':radius, 'selector': selector}
+        return DataMap(results, structure=self, params=params)
+
+    def _map_pdb_numbering_to_reference(self, ref, map_to_dna=False):
+        '''Create a lookup dictionary mapping PDB numbering as given by Biopython to
+        the indices of a reference sequence.
+
+        Args:
+            ref (dict): A dictionary of reference sequences accessed by chain ID.
+            map_to_dna (bool, optional): Set to true if reference sequences are DNA sequences.
+                Will align DNA to protein sequences using Exonerate (if available),
+                otherwise will perform a simple translation (first reading frame) and align
+                translated protein to PDB sequence.
+        Returns:
+            dict: A map of PDB numbering (key) to reference sequence index (value)
+        '''
+        # Use the first model. Will be the only model unless it's an NMR structure.
+        model = self[sorted(self.models)[0]]
         # Create a map of pdb sequence index (1-indexed) to pdb residue
         # numbering from file
         is_mmcif = self._mmcif
@@ -510,20 +546,7 @@ class Structure(object):
         #structure (ie has coordinates)
         pdbnum_to_ref = {seq_index_to_pdb_numb[x]:pdb_index_to_ref[x] for x in
                          pdb_index_to_ref if x in seq_index_to_pdb_numb}
-        results = {}
-
-        #For each residue within the sequence, apply a function and return result.
-        for residue in residue_map:
-            if rsa_range:
-                residues = self._filter_rsa(residue_map[residue], rsa_range)
-                if residue not in residues:
-                    results[residue] = None
-                    continue
-            else:
-                residues = residue_map[residue]
-            results[residue] = method(self, data, residues, pdbnum_to_ref, **method_params)
-        params = {'radius':radius, 'selector': selector}
-        return DataMap(results, structure=self, params=params)
+        return pdbnum_to_ref
 
     def _filter_rsa(self, residues, rsa_range):
         '''

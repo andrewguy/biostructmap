@@ -271,7 +271,7 @@ class DataMap(dict):
         converted_data = [(*pdb_to_seq[res], score) for res, score in data_to_write if res in pdb_to_seq]
 
         file_contents = '\n'.join([sep.join(str(y) for y in x) for x in converted_data])
-        header = sep.join(['chain', 'reference', 'score\n'])
+        header = sep.join(['chain', 'reference_residue', 'score\n'])
         with open_if_string(fileobj, 'w') as f:
             f.write(header)
             f.write(file_contents)

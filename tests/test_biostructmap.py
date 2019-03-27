@@ -866,7 +866,7 @@ class TestOutputWriting(TestCase):
         mock_file.seek(0)
         written_lines = mock_file.readlines()
         # 271 equates to 63 in original structure.
-        self.assertEquals(written_lines[0], 'chain,reference,score\n')
+        self.assertEquals(written_lines[0], 'chain,reference_residue,score\n')
         self.assertTrue('A,63,10\n' in written_lines)
 
     def test_writing_to_atom(self):

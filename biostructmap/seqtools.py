@@ -43,7 +43,7 @@ def _sliding_window(seq_align, window, step=3, fasta_out=False):
     '''
     try:
         alignments = AlignIO.read(seq_align, 'fasta')
-    except AttributeError:
+    except (AttributeError, ValueError):
         alignments = seq_align
     #Length of alignments
     length = len(alignments[0])
@@ -76,7 +76,7 @@ def _sliding_window_var_sites(seq_align, window, step=3):
     '''
     try:
         alignments = AlignIO.read(seq_align, 'fasta')
-    except AttributeError:
+    except (AttributeError, ValueError):
         alignments = seq_align
     #Length of alignments
     length = len(alignments[0])

@@ -15,7 +15,6 @@ from Bio.Blast import NCBIXML
 from Bio.pairwise2 import align
 from Bio.SubsMat import MatrixInfo as matlist
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
 
 #Use local BLAST+ installation. Falls back to pairwise2 if False.
 LOCAL_BLAST = True
@@ -214,7 +213,7 @@ def _align_prot_to_dna_no_exonerate(prot_seq, dna_seq):
             e.g. {3:(6,7,8), 4:(9,10,11), ...}
     '''
     #Translate DNA sequence to protein sequence
-    dna_prot_seq = str(Seq(dna_seq, generic_dna).translate())
+    dna_prot_seq = str(Seq(dna_seq).translate())
     #Use existing methods to align protein-protein
     prot_dna_dict, _ = align_protein_sequences(prot_seq, dna_prot_seq)
     #Convert output to protein: codon dict

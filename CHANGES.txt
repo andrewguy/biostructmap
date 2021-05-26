@@ -1,3 +1,6 @@
+v0.4.1, 2021-05-26 -- Fix bug in Tajima's D when not using Scipy.
+ * Fixed a bug causing exceptions to be raised when calculating Tajima's D without Scipy installed. This did not affect calculated results (if no exception was raised).
+
 v0.4.0, 2019-03-13 -- Speed up population stats calculations
  * Add faster implementation of common population stats that previously used DendroPy implementation.
  * Add warning when uncertain base pairs are used with population stats.

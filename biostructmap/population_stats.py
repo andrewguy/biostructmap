@@ -8,11 +8,17 @@ uncertain base calls).
 import numpy as np
 import math
 from collections import Counter
+import operator as op
+from functools import reduce
 
-def n_choose_k(n,k):
+def n_choose_k(n, k):
     "Binomial Coefficient."
-    f = math.factorial
-    return f(n) // f(k) // f(n-k)
+    k = min(k, n-k)
+    if k < 0:
+        return 0
+    numer = reduce(op.mul, range(n, n-k, -1), 1)
+    denom = reduce(op.mul, range(1, k+1), 1)
+    return numer // denom
 
 # Scipy may not be installed. If not, use our own combinatorial function.
 # Scipy implementation is slightly faster.
@@ -65,7 +71,7 @@ def _tajimas_d(num_seqs, avg_pairwise_diffs, num_seg_sites):
     a1 = np.sum(np.reciprocal(np.arange(1, num_seqs, dtype='float64')))
     a2 = np.sum(np.reciprocal(np.square(np.arange(1, num_seqs, dtype='float64'))))
     b1 = float(num_seqs + 1) / (3 * (num_seqs - 1))
-    b2 = float(2 * ( (num_seqs**2) + num_seqs + 3 )) / (9*num_seqs*(num_seqs-1))
+    b2 = float(2 * ((num_seqs**2) + num_seqs + 3 )) / (9*num_seqs*(num_seqs-1))
     c1 = b1 - 1.0 / a1
     c2 = b2 - float(num_seqs+2)/(a1 * num_seqs) + float(a2)/(a1 ** 2)
     e1 = float(c1) / a1

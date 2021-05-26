@@ -856,7 +856,7 @@ class TestOutputWriting(TestCase):
         mock_file.seek(0)
         written_lines = mock_file.readlines()
         # 271 equates to 63 in original structure.
-        self.assertEquals(written_lines[0], 'chain,reference_residue,score\n')
+        self.assertEqual(written_lines[0], 'chain,reference_residue,score\n')
         self.assertTrue('A,63,10\n' in written_lines)
 
     def test_writing_to_file_without_ref(self):
@@ -866,7 +866,7 @@ class TestOutputWriting(TestCase):
         mock_file.seek(0)
         written_lines = mock_file.readlines()
         # 271 equates to 63 in original structure.
-        self.assertEquals(written_lines[0], 'chain,reference_residue,score\n')
+        self.assertEqual(written_lines[0], 'chain,reference_residue,score\n')
         self.assertTrue('A,63,10\n' in written_lines)
 
     def test_writing_to_atom(self):
@@ -876,6 +876,6 @@ class TestOutputWriting(TestCase):
         mock_file.seek(0)
         written_lines = mock_file.readlines()
         print(written_lines)
-        self.assertEquals(written_lines[0], 'atom_serial,score\n')
+        self.assertEqual(written_lines[0], 'atom_serial,score\n')
         self.assertTrue('952,10\n' in written_lines)
         
